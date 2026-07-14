@@ -5,6 +5,10 @@ import { ROLE_META } from "./lib/roleMeta";
 import LoginFlow from "./components/LoginFlow";
 import DeskApp from "./components/desk/DeskApp";
 import BusOpsMode from "./components/bus/BusOpsMode";
+import EventScanMode from "./components/scan/EventScanMode";
+import VerifyMode from "./components/verify/VerifyMode";
+import ReportsScreen from "./components/reports/ReportsScreen";
+import AdminMode from "./components/admin/AdminMode";
 import BottomTabBar from "./components/shared/BottomTabBar";
 
 export default function App() {
@@ -37,10 +41,10 @@ export default function App() {
           <div className="flex-1 flex flex-col overflow-hidden">
             {mode === "desk" && <DeskApp allowSkipPhoto={true} />}
             {mode === "bus" && <BusOpsMode />}
-            {mode === "scan" && <ComingSoon label="Event / Entry Scan" />}
-            {mode === "verify" && <ComingSoon label="Scan & Verify" />}
-            {mode === "reports" && <ComingSoon label="Reports" />}
-            {mode === "admin" && <ComingSoon label="Admin" />}
+            {mode === "scan" && <EventScanMode />}
+            {mode === "verify" && <VerifyMode />}
+            {mode === "reports" && <ReportsScreen />}
+            {mode === "admin" && <AdminMode callCrewAdmin={auth.callCrewAdmin} isSuperAdmin={auth.crew.approved_role === "superadmin"} />}
           </div>
 
           <BottomTabBar mode={mode} setMode={setMode} visibleTabs={visibleTabs} />
@@ -48,15 +52,6 @@ export default function App() {
       ) : (
         <LoginFlow auth={auth} />
       )}
-    </div>
-  );
-}
-
-function ComingSoon({ label }) {
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-2" style={{ background: C.inkSoft, color: C.ink40, fontSize: 13 }}>
-      <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 17 }}>{label}</div>
-      <div>Not wired up to Supabase yet — still mockup-only.</div>
     </div>
   );
 }

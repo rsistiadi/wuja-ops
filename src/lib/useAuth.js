@@ -76,5 +76,22 @@ export function useAuth() {
     return body;
   }, []);
 
-  return { session, crew, loading, searchNames, signIn, signOut, requestSignup };
+  // --- Admin actions: approve/reject/reset_pin/deactivate/reactivate.
+  // Requires the caller's own session token — crew-admin verifies on
+  // the server that this token belongs to an active Admin/Super Admin,
+  // never trusting anything the client claims about its own role. ---
+  const callCrewAdmin = useCallback(async (action, payload) => {
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    if (!currentSession) throw new Error("Not logged in");
+    const res = await fetch(`${FUNCTIONS_URL}/crew-admin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${currentSession.access_token}` },
+      body: JSON.stringify({ action, ...payload }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || "Action failed");
+    return body;
+  }, []);
+
+  return { session, crew, loading, searchNames, signIn, signOut, requestSignup, callCrewAdmin };
 }
