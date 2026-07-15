@@ -1,21 +1,31 @@
 import React, { useState, useEffect } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, UserCircle2 } from "lucide-react";
 import { C } from "../../lib/tokens";
 import { Dropdown } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
+import { getCrewPhotoUrl } from "../../lib/photoStorage";
 import { ROLE_META } from "../../lib/roleMeta";
 
 const ROLE_OPTIONS = Object.entries(ROLE_META).map(([value, v]) => ({ value, label: v.label }));
 
 export default function AdminCrew({ callCrewAdmin }) {
   const [crew, setCrew] = useState([]);
+  const [photoUrls, setPhotoUrls] = useState({});
   const [roleDraft, setRoleDraft] = useState({});
   const [resetNotice, setResetNotice] = useState({});
   const [confirmAction, setConfirmAction] = useState(null); // { type, member }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const refetch = () => supabase.from("crew").select("*").order("created_at").then(({ data }) => setCrew(data || []));
+  const refetch = async () => {
+    const { data } = await supabase.from("crew").select("*").order("created_at");
+    setCrew(data || []);
+    const withPhotos = (data || []).filter((c) => c.photo_url && !photoUrls[c.id]);
+    for (const c of withPhotos) {
+      const url = await getCrewPhotoUrl(c.photo_url);
+      if (url) setPhotoUrls((prev) => ({ ...prev, [c.id]: url }));
+    }
+  };
   useEffect(() => { refetch(); }, []);
 
   const pending = crew.filter((c) => c.status === "pending");
@@ -60,8 +70,15 @@ export default function AdminCrew({ callCrewAdmin }) {
         {pending.length === 0 && <div style={{ color: C.ink40, fontSize: 12 }}>None.</div>}
         {pending.map((c) => (
           <div key={c.id} className="rounded-xl p-3.5 mb-2" style={{ background: C.ink, border: `1px solid ${C.gold}66` }}>
-            <div style={{ color: C.parchment, fontSize: 13.5, fontWeight: 700 }}>{c.full_name}</div>
-            <div style={{ color: C.ink60, fontSize: 11.5, margin: "4px 0 8px" }}>Requested: {ROLE_META[c.requested_role]?.label}</div>
+            <div className="flex items-center gap-3">
+              {photoUrls[c.id] ? (
+                <img src={photoUrls[c.id]} alt={c.full_name} style={{ width: 44, height: 44, borderRadius: 999, objectFit: "cover", border: `2px solid ${C.gold}` }} />
+              ) : (
+                <div style={{ width: 44, height: 44, borderRadius: 999, background: `${C.gold}22`, border: `2px solid ${C.gold}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><UserCircle2 size={24} color={C.gold} /></div>
+              )}
+              <div><div style={{ color: C.parchment, fontSize: 13.5, fontWeight: 700 }}>{c.full_name}</div><div style={{ color: C.ink60, fontSize: 11.5, marginTop: 2 }}>Requested: {ROLE_META[c.requested_role]?.label}</div></div>
+            </div>
+            <div style={{ marginTop: 10 }} />
             <Dropdown value={roleDraft[c.id] || c.requested_role} onChange={(v) => setRoleDraft((prev) => ({ ...prev, [c.id]: v }))} options={ROLE_OPTIONS} />
             <div className="flex gap-2 mt-2.5">
               <button onClick={() => approve(c)} disabled={busy} className="flex-1 rounded-lg" style={{ background: C.ok, color: C.ink, fontSize: 12, fontWeight: 700, padding: "8px 0", border: "none", cursor: "pointer" }}>Approve</button>

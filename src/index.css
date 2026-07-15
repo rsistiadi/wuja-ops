@@ -5,3 +5,13 @@
 body {
   margin: 0;
 }
+
+/* Without this, nested flex-column layouts (very common in this app —
+   header, scrollable middle, footer, all inside each other) can grow
+   taller than their container instead of shrinking to fit, which is
+   what was pushing the bottom tab bar off-screen. Every flex-1 element
+   needs to be explicitly allowed to shrink below its content size. */
+.flex-1 {
+  min-height: 0;
+  min-width: 0;
+}

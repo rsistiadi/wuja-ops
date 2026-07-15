@@ -1,7 +1,8 @@
-import React, { useState } from "react";
-import { Search, ArrowRight, Check, AlertTriangle, X, ShieldCheck } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Search, ArrowRight, Check, AlertTriangle, X, ShieldCheck, Camera, RotateCcw, SkipForward, SwitchCamera } from "lucide-react";
 import { C } from "../lib/tokens";
-import { TopBar, PrimaryButton, Dropdown, useDebouncedValue } from "./shared/UI";
+import { TopBar, PrimaryButton, GhostButton, Dropdown, useDebouncedValue } from "./shared/UI";
+import { startCamera, stopCamera, captureNormalizedPhoto } from "../lib/photo";
 
 const ROLE_OPTIONS = [
   { value: "registration", label: "Registration Crew" },
@@ -12,7 +13,7 @@ const ROLE_OPTIONS = [
 ];
 
 export default function LoginFlow({ auth }) {
-  const [stage, setStage] = useState("select"); // select | set-pin | request-role | enter-pin | pending | deactivated
+  const [stage, setStage] = useState("select"); // select | set-pin | request-role | photo | enter-pin | pending | deactivated
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 250);
   const [results, setResults] = useState([]);
@@ -26,7 +27,15 @@ export default function LoginFlow({ auth }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  React.useEffect(() => {
+  // Photo step (crew self-registration only)
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const [facingMode, setFacingMode] = useState("user"); // front camera default here — this is a self-portrait, unlike the attendee-facing Desk capture
+  const [cameraError, setCameraError] = useState("");
+  const [photoBlob, setPhotoBlob] = useState(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState(null);
+
+  useEffect(() => {
     let cancelled = false;
     if (debouncedQuery.trim().length < 2) { setResults([]); return; }
     setSearching(true);
@@ -34,6 +43,18 @@ export default function LoginFlow({ auth }) {
       .catch((e) => { if (!cancelled) { setError(e.message); setSearching(false); } });
     return () => { cancelled = true; };
   }, [debouncedQuery, auth]);
+
+  useEffect(() => {
+    if (stage !== "photo" || photoBlob) return;
+    let cancelled = false;
+    setCameraError("");
+    if (videoRef.current) {
+      startCamera(videoRef.current, facingMode)
+        .then((stream) => { if (!cancelled) streamRef.current = stream; else stopCamera(stream); })
+        .catch((e) => setCameraError(e.message || "Camera unavailable — you can skip this step."));
+    }
+    return () => { cancelled = true; stopCamera(streamRef.current); streamRef.current = null; };
+  }, [stage, photoBlob, facingMode]);
 
   const pickExisting = (rec) => {
     setSelected(rec); setError("");
@@ -56,10 +77,22 @@ export default function LoginFlow({ auth }) {
     setError(""); setStage("request-role");
   };
 
-  const submitRoleRequest = async () => {
+  const capturePhoto = async () => {
+    try {
+      const blob = await captureNormalizedPhoto(videoRef.current, facingMode);
+      setPhotoBlob(blob);
+      setPhotoPreviewUrl(URL.createObjectURL(blob));
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+  const retakePhoto = () => { setPhotoBlob(null); setPhotoPreviewUrl(null); setError(""); };
+  const switchCamera = () => setFacingMode((f) => (f === "environment" ? "user" : "environment"));
+
+  const finishSignup = async (blob) => {
     setBusy(true); setError("");
     try {
-      await auth.requestSignup({ fullName: typedName, requestedRole: reqRole, pin: pin1 });
+      await auth.requestSignup({ fullName: typedName, requestedRole: reqRole, pin: pin1, photoBlob: blob });
       setStage("pending");
     } catch (e) {
       setError(e.message);
@@ -104,7 +137,6 @@ export default function LoginFlow({ auth }) {
                 {results.map((r) => (
                   <button key={r.id} onClick={() => pickExisting(r)} className="rounded-xl px-4 py-3 text-left" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 13.5, fontWeight: 600 }}>{r.full_name}</button>
                 ))}
-                {/* Offer self-registration for a name that's not yet a crew record */}
                 <button onClick={() => pickNew(debouncedQuery.trim())} className="rounded-xl px-4 py-3 text-left" style={{ background: "transparent", border: `1px dashed ${C.gold}66`, color: C.gold, fontSize: 13, fontWeight: 700 }}>
                   + Register as "{debouncedQuery.trim()}"
                 </button>
@@ -137,7 +169,44 @@ export default function LoginFlow({ auth }) {
             <Dropdown value={reqRole} onChange={setReqRole} options={ROLE_OPTIONS} />
             <div style={{ color: C.ink40, fontSize: 11.5 }}>An Admin will review this — they may approve you into a different role than requested.</div>
             {error && <div style={{ color: C.alert, fontSize: 12 }}>{error}</div>}
-            <PrimaryButton icon={Check} disabled={busy} onClick={submitRoleRequest}>{busy ? "Submitting…" : "Submit request"}</PrimaryButton>
+            <PrimaryButton icon={ArrowRight} onClick={() => setStage("photo")}>Continue to photo</PrimaryButton>
+          </>
+        )}
+
+        {stage === "photo" && (
+          <>
+            <button onClick={() => setStage("request-role")} style={{ color: C.ink40, fontSize: 11.5, alignSelf: "flex-start", background: "none", border: "none", cursor: "pointer" }}>← Back</button>
+            <div style={{ color: C.ink60, fontSize: 12.5 }}>A photo helps Admins know who they're approving — optional but recommended.</div>
+            <div className="rounded-2xl relative overflow-hidden" style={{ background: "#0B1524", border: `1px solid ${C.inkLine}`, height: 260 }}>
+              {!photoBlob ? (
+                cameraError ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-6">
+                    <AlertTriangle size={24} color={C.gold} />
+                    <div style={{ color: C.ink60, fontSize: 12, textAlign: "center" }}>{cameraError}</div>
+                  </div>
+                ) : (
+                  <>
+                    <video ref={videoRef} playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", transform: facingMode === "user" ? "scaleX(-1)" : "none" }} />
+                    <button onClick={switchCamera} className="flex items-center justify-center rounded-full" style={{ position: "absolute", top: 10, right: 10, width: 36, height: 36, background: "rgba(10,15,26,0.65)", border: `1px solid ${C.inkLine}`, cursor: "pointer" }}>
+                      <SwitchCamera size={16} color={C.parchment} />
+                    </button>
+                  </>
+                )
+              ) : (
+                <img src={photoPreviewUrl} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              )}
+            </div>
+            {!photoBlob ? (
+              <button onClick={capturePhoto} disabled={!!cameraError} className="mx-auto flex items-center justify-center rounded-full"
+                style={{ width: 56, height: 56, background: C.gold, border: `3px solid ${C.goldDeep}`, cursor: cameraError ? "default" : "pointer", opacity: cameraError ? 0.5 : 1 }}>
+                <Camera size={22} color={C.ink} />
+              </button>
+            ) : (
+              <GhostButton icon={RotateCcw} onClick={retakePhoto}>Retake</GhostButton>
+            )}
+            {error && <div style={{ color: C.alert, fontSize: 12 }}>{error}</div>}
+            <PrimaryButton icon={Check} disabled={!photoBlob || busy} onClick={() => finishSignup(photoBlob)}>{busy ? "Submitting…" : "Submit request"}</PrimaryButton>
+            {!photoBlob && <GhostButton icon={SkipForward} onClick={() => finishSignup(null)}>Skip photo, submit request</GhostButton>}
           </>
         )}
 

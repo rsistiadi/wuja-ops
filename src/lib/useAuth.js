@@ -65,11 +65,20 @@ export function useAuth() {
   // a direct table insert, so validation (weak-PIN check, duplicate
   // name check) happens server-side and can't be bypassed by a
   // tampered client. ---
-  const requestSignup = useCallback(async ({ fullName, requestedRole, pin }) => {
+  const requestSignup = useCallback(async ({ fullName, requestedRole, pin, photoBlob }) => {
+    let photo_base64 = null;
+    if (photoBlob) {
+      photo_base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result); // data URL — server strips the prefix
+        reader.onerror = reject;
+        reader.readAsDataURL(photoBlob);
+      });
+    }
     const res = await fetch(`${FUNCTIONS_URL}/crew-self-register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ full_name: fullName, requested_role: requestedRole, pin }),
+      body: JSON.stringify({ full_name: fullName, requested_role: requestedRole, pin, photo_base64 }),
     });
     const body = await res.json();
     if (!res.ok) throw new Error(body.error || "Signup failed");

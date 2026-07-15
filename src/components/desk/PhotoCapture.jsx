@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import { Camera, RotateCcw, ArrowRight, SkipForward, AlertTriangle } from "lucide-react";
+import { Camera, RotateCcw, ArrowRight, SkipForward, AlertTriangle, SwitchCamera } from "lucide-react";
 import { C, CATEGORY_META } from "../../lib/tokens";
 import { TopBar, PrimaryButton, GhostButton, StepDots } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
@@ -10,6 +10,7 @@ export default function PhotoCapture({ reg, allowSkip, onBack, onNext }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const fileInputRef = useRef(null);
+  const [facingMode, setFacingMode] = useState("environment"); // rear camera by default — crew photographs the attendee, not themselves
   const [cameraError, setCameraError] = useState("");
   const [capturedBlob, setCapturedBlob] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -17,22 +18,30 @@ export default function PhotoCapture({ reg, allowSkip, onBack, onNext }) {
   const [error, setError] = useState("");
   const meta = CATEGORY_META[reg.category];
 
+  // Single effect owns the camera's whole lifecycle, keyed on whatever
+  // should cause it to (re)start: no photo captured yet, or the camera
+  // was switched. This fixes the old "camera not ready" bug on retake —
+  // that bug was calling startCamera() synchronously right after
+  // setCapturedBlob(null), before React had actually remounted the
+  // <video> element, so the ref was stale. An effect only runs *after*
+  // the DOM commit, so videoRef.current is guaranteed valid here.
   useEffect(() => {
+    if (capturedBlob) return; // nothing to do while showing a preview
     let cancelled = false;
+    setCameraError("");
     if (videoRef.current) {
-      startCamera(videoRef.current)
+      startCamera(videoRef.current, facingMode)
         .then((stream) => { if (!cancelled) streamRef.current = stream; else stopCamera(stream); })
         .catch((e) => setCameraError(e.message || "Camera unavailable — use 'Upload photo instead' below."));
     }
-    return () => { cancelled = true; stopCamera(streamRef.current); };
-  }, []);
+    return () => { cancelled = true; stopCamera(streamRef.current); streamRef.current = null; };
+  }, [capturedBlob, facingMode]);
 
   const capture = async () => {
     try {
-      const blob = await captureNormalizedPhoto(videoRef.current);
+      const blob = await captureNormalizedPhoto(videoRef.current, facingMode);
       setCapturedBlob(blob);
       setPreviewUrl(URL.createObjectURL(blob));
-      stopCamera(streamRef.current);
     } catch (e) {
       setError(e.message);
     }
@@ -45,19 +54,13 @@ export default function PhotoCapture({ reg, allowSkip, onBack, onNext }) {
       const blob = await normalizeImageFile(file);
       setCapturedBlob(blob);
       setPreviewUrl(URL.createObjectURL(blob));
-      stopCamera(streamRef.current);
     } catch (err) {
       setError("Couldn't read that image — try a different file.");
     }
   };
 
-  const retake = async () => {
-    setCapturedBlob(null); setPreviewUrl(null); setError("");
-    if (videoRef.current) {
-      const stream = await startCamera(videoRef.current).catch((e) => { setCameraError(e.message); return null; });
-      if (stream) streamRef.current = stream;
-    }
-  };
+  const retake = () => { setCapturedBlob(null); setPreviewUrl(null); setError(""); };
+  const switchCamera = () => setFacingMode((f) => (f === "environment" ? "user" : "environment"));
 
   const confirm = async () => {
     setSaving(true); setError("");
@@ -91,7 +94,7 @@ export default function PhotoCapture({ reg, allowSkip, onBack, onNext }) {
           Align face and shoulders within the frame — same framing for everyone keeps badges consistent.
         </div>
 
-        <div className="flex-1 rounded-2xl relative overflow-hidden" style={{ background: "#0B1524", border: `1px solid ${C.inkLine}`, minHeight: 300 }}>
+        <div className="flex-1 rounded-2xl relative overflow-hidden" style={{ background: "#0B1524", border: `1px solid ${C.inkLine}`, minHeight: 340 }}>
           {!capturedBlob ? (
             cameraError ? (
               <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6">
@@ -100,11 +103,11 @@ export default function PhotoCapture({ reg, allowSkip, onBack, onNext }) {
               </div>
             ) : (
               <>
-                <video ref={videoRef} playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }} />
-                <svg width="150" height="200" viewBox="0 0 150 200" style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", pointerEvents: "none" }}>
-                  <ellipse cx="75" cy="70" rx="42" ry="52" fill="none" stroke={C.gold} strokeWidth="1.5" strokeDasharray="5 4" opacity="0.7" />
-                  <path d="M 20 200 C 20 140 50 120 75 120 C 100 120 130 140 130 200" fill="none" stroke={C.gold} strokeWidth="1.5" strokeDasharray="5 4" opacity="0.7" />
-                </svg>
+                <video ref={videoRef} playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", transform: facingMode === "user" ? "scaleX(-1)" : "none" }} />
+                <FramingGuide />
+                <button onClick={switchCamera} className="flex items-center justify-center rounded-full" style={{ position: "absolute", top: 12, right: 12, width: 40, height: 40, background: "rgba(10,15,26,0.65)", border: `1px solid ${C.inkLine}`, cursor: "pointer" }}>
+                  <SwitchCamera size={18} color={C.parchment} />
+                </button>
               </>
             )
           ) : (
@@ -136,5 +139,29 @@ export default function PhotoCapture({ reg, allowSkip, onBack, onNext }) {
         {!capturedBlob && allowSkip && <GhostButton icon={SkipForward} onClick={skip}>Skip for now</GhostButton>}
       </div>
     </div>
+  );
+}
+
+// A large, high-contrast framing guide: everything outside the
+// head-and-shoulders outline gets darkened (a "spotlight" effect),
+// which makes the guide clearly visible regardless of what's behind it
+// (unlike a thin dashed line, which disappeared against busy/light
+// backgrounds). Bright yellow with a dark outline reads on any scene.
+function FramingGuide() {
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      <defs>
+        <mask id="guide-cutout">
+          <rect x="0" y="0" width="300" height="400" fill="white" />
+          <ellipse cx="150" cy="150" rx="88" ry="108" fill="black" />
+          <path d="M 40 400 C 40 300 90 255 150 255 C 210 255 260 300 260 400 Z" fill="black" />
+        </mask>
+      </defs>
+      <rect x="0" y="0" width="300" height="400" fill="rgba(0,0,0,0.55)" mask="url(#guide-cutout)" />
+      <ellipse cx="150" cy="150" rx="88" ry="108" fill="none" stroke="#0A0F1A" strokeWidth="5" opacity="0.6" />
+      <path d="M 40 400 C 40 300 90 255 150 255 C 210 255 260 300 260 400" fill="none" stroke="#0A0F1A" strokeWidth="5" opacity="0.6" />
+      <ellipse cx="150" cy="150" rx="88" ry="108" fill="none" stroke="#FFD24C" strokeWidth="2.5" strokeDasharray="8 6" />
+      <path d="M 40 400 C 40 300 90 255 150 255 C 210 255 260 300 260 400" fill="none" stroke="#FFD24C" strokeWidth="2.5" strokeDasharray="8 6" />
+    </svg>
   );
 }

@@ -26,3 +26,15 @@ export async function getBadgePhotoUrl(path, expiresInSeconds = 3600) {
   }
   return data.signedUrl;
 }
+
+export async function getCrewPhotoUrl(path, expiresInSeconds = 3600) {
+  if (!path) return null;
+  const { data, error } = await supabase.storage
+    .from("crew-photos")
+    .createSignedUrl(path, expiresInSeconds);
+  if (error) {
+    console.error("Failed to sign crew photo URL:", error.message);
+    return null;
+  }
+  return data.signedUrl;
+}

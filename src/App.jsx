@@ -28,7 +28,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: C.ink }}>
+    <div className="h-screen overflow-hidden flex flex-col" style={{ background: C.ink }}>
       {auth.session && auth.crew ? (
         <>
           <div className="flex items-center justify-between px-5 py-2 flex-shrink-0" style={{ background: C.inkSoft, borderBottom: `1px solid ${C.inkLine}` }}>
