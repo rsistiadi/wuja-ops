@@ -23,7 +23,7 @@ export default function ScanSheet({ title, onClose, onResolve, requireReasonAlwa
   const runSearch = async (q) => {
     setQuery(q);
     if (q.trim().length < 2) { setResults([]); setSearchError(""); return; }
-    const { data, error } = await supabase.from("registrations").select("id, full_name, category, person_role, medical_note").ilike("full_name", `%${q.trim()}%`).limit(20);
+    const { data, error } = await supabase.from("registrations").select("id, full_name, category, medical_note").ilike("full_name", `%${q.trim()}%`).limit(20);
     if (error) { setSearchError(error.message); return; }
     setSearchError("");
     setResults(data || []);

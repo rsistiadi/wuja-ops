@@ -10,10 +10,35 @@ export function isAllowed(reg, checkpoint, namedListIds) {
 }
 
 export const CATEGORY_OPTIONS = [
-  { value: "organizer", label: "Organizer" },
-  { value: "guest", label: "Participant / Spouse" },
-  { value: "speaker", label: "Speaker / Performer" },
+  { value: "vip_pass", label: "VIP (Pass)" },
+  { value: "vip", label: "VIP" },
+  { value: "speaker", label: "Speaker" },
+  { value: "accompanying", label: "Accompanying" },
+  { value: "board_member", label: "Board Member" },
+  { value: "delegate_pass", label: "Delegate (Pass)" },
+  { value: "delegate", label: "Delegate" },
+  { value: "youth_wing", label: "Youth Wing" },
+  { value: "exhibitor", label: "Exhibitor" },
+  { value: "performer", label: "Performer" },
+  { value: "volunteer", label: "Volunteer" },
+  { value: "committee", label: "Committee" },
 ];
+
+// Performer access doesn't follow the category rule like everyone else
+// — it depends on which color group a specific individual belongs to.
+// Rather than force that into the category-based rule, each performer
+// gets added to the named guest list of exactly the one venue their
+// color maps to.
+export const PERFORMER_COLOR_OPTIONS = [
+  { value: "yellow", label: "Yellow" },
+  { value: "green", label: "Green" },
+  { value: "cyan", label: "Cyan" },
+];
+export const PERFORMER_COLOR_VENUE = {
+  yellow: "Ganjuran",
+  green: "Sadhar",
+  cyan: "Prambanan",
+};
 
 export const ACCESS_RULE_OPTIONS = [
   { value: "all", label: "Open to all" },

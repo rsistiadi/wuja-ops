@@ -118,7 +118,7 @@ function BusRosterPicker({ bus, onBack }) {
   const [results, setResults] = useState([]);
 
   useEffect(() => {
-    const query = supabase.from("registrations").select("id, full_name, category, person_role, assigned_bus_id");
+    const query = supabase.from("registrations").select("id, full_name, category, assigned_bus_id");
     (q.trim().length >= 2 ? query.ilike("full_name", `%${q.trim()}%`) : query.eq("assigned_bus_id", bus.id)).limit(50).then(({ data }) => setResults(data || []));
   }, [q, bus.id]);
 

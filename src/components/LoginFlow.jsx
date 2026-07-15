@@ -1,19 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Search, ArrowRight, Check, AlertTriangle, X, ShieldCheck, Camera, RotateCcw, SkipForward, SwitchCamera } from "lucide-react";
-import { C } from "../lib/tokens";
+import { Search, ArrowRight, Check, AlertTriangle, X, ShieldCheck, Camera, RotateCcw, SwitchCamera } from "lucide-react";
+import { C, CATEGORY_META } from "../lib/tokens";
 import { TopBar, PrimaryButton, GhostButton, Dropdown, useDebouncedValue } from "./shared/UI";
 import { startCamera, stopCamera, captureNormalizedPhoto } from "../lib/photo";
+import { CATEGORY_OPTIONS, PERFORMER_COLOR_OPTIONS } from "../lib/checkpointAccess";
+import { ROLE_META } from "../lib/roleMeta";
 
-const ROLE_OPTIONS = [
-  { value: "registration", label: "Registration Crew" },
-  { value: "scanner", label: "Scan / Read-only" },
-  { value: "liaison", label: "Liaison Officer" },
-  { value: "admin", label: "Admin" },
-  { value: "superadmin", label: "Super Admin" },
-];
+const ROLE_OPTIONS = Object.entries(ROLE_META).map(([value, v]) => ({ value, label: v.label }));
 
 export default function LoginFlow({ auth }) {
-  const [stage, setStage] = useState("select"); // select | set-pin | request-role | photo | enter-pin | pending | deactivated
+  const [stage, setStage] = useState("select"); // select | set-pin | request-role | category | photo | enter-pin | pending | deactivated
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 250);
   const [results, setResults] = useState([]);
@@ -22,12 +18,16 @@ export default function LoginFlow({ auth }) {
   const [typedName, setTypedName] = useState("");
   const [pin1, setPin1] = useState("");
   const [pin2, setPin2] = useState("");
-  const [reqRole, setReqRole] = useState("registration");
+  const [reqRole, setReqRole] = useState("crew");
+  const [category, setCategory] = useState("committee");
+  const [performerColor, setPerformerColor] = useState("yellow");
   const [pinInput, setPinInput] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Photo step (crew self-registration only)
+  // Photo step — mandatory for crew/admin/superadmin, since this photo
+  // becomes their actual badge photo under the unified badge system,
+  // not a separate optional courtesy photo.
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const [facingMode, setFacingMode] = useState("user"); // front camera default here — this is a self-portrait, unlike the attendee-facing Desk capture
@@ -51,7 +51,7 @@ export default function LoginFlow({ auth }) {
     if (videoRef.current) {
       startCamera(videoRef.current, facingMode)
         .then((stream) => { if (!cancelled) streamRef.current = stream; else stopCamera(stream); })
-        .catch((e) => setCameraError(e.message || "Camera unavailable — you can skip this step."));
+        .catch((e) => setCameraError(e.message || "Camera unavailable — try again or use a different device."));
     }
     return () => { cancelled = true; stopCamera(streamRef.current); streamRef.current = null; };
   }, [stage, photoBlob, facingMode]);
@@ -89,10 +89,10 @@ export default function LoginFlow({ auth }) {
   const retakePhoto = () => { setPhotoBlob(null); setPhotoPreviewUrl(null); setError(""); };
   const switchCamera = () => setFacingMode((f) => (f === "environment" ? "user" : "environment"));
 
-  const finishSignup = async (blob) => {
+  const finishSignup = async () => {
     setBusy(true); setError("");
     try {
-      await auth.requestSignup({ fullName: typedName, requestedRole: reqRole, pin: pin1, photoBlob: blob });
+      await auth.requestSignup({ fullName: typedName, requestedRole: reqRole, pin: pin1, category, performerColor: category === "performer" ? performerColor : null, photoBlob });
       setStage("pending");
     } catch (e) {
       setError(e.message);
@@ -165,18 +165,34 @@ export default function LoginFlow({ auth }) {
         {stage === "request-role" && (
           <>
             <button onClick={() => setStage("set-pin")} style={{ color: C.ink40, fontSize: 11.5, alignSelf: "flex-start", background: "none", border: "none", cursor: "pointer" }}>← Back</button>
-            <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600 }}>Which role are you requesting?</div>
+            <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600 }}>Which access level are you requesting?</div>
             <Dropdown value={reqRole} onChange={setReqRole} options={ROLE_OPTIONS} />
-            <div style={{ color: C.ink40, fontSize: 11.5 }}>An Admin will review this — they may approve you into a different role than requested.</div>
+            <div style={{ color: C.ink40, fontSize: 11.5 }}>An Admin will review this — they may approve you into a different level than requested.</div>
             {error && <div style={{ color: C.alert, fontSize: 12 }}>{error}</div>}
+            <PrimaryButton icon={ArrowRight} onClick={() => setStage("category")}>Continue</PrimaryButton>
+          </>
+        )}
+
+        {stage === "category" && (
+          <>
+            <button onClick={() => setStage("request-role")} style={{ color: C.ink40, fontSize: 11.5, alignSelf: "flex-start", background: "none", border: "none", cursor: "pointer" }}>← Back</button>
+            <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600 }}>What's your badge category?</div>
+            <div style={{ color: C.ink40, fontSize: 11.5 }}>Everyone using Wuja Ops also gets a physical congress badge — this determines which venues you can access.</div>
+            <Dropdown value={category} onChange={setCategory} options={CATEGORY_OPTIONS} />
+            {category === "performer" && (
+              <>
+                <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600, marginTop: 4 }}>Performer color group</div>
+                <Dropdown value={performerColor} onChange={setPerformerColor} options={PERFORMER_COLOR_OPTIONS} />
+              </>
+            )}
             <PrimaryButton icon={ArrowRight} onClick={() => setStage("photo")}>Continue to photo</PrimaryButton>
           </>
         )}
 
         {stage === "photo" && (
           <>
-            <button onClick={() => setStage("request-role")} style={{ color: C.ink40, fontSize: 11.5, alignSelf: "flex-start", background: "none", border: "none", cursor: "pointer" }}>← Back</button>
-            <div style={{ color: C.ink60, fontSize: 12.5 }}>A photo helps Admins know who they're approving — optional but recommended.</div>
+            <button onClick={() => setStage("category")} style={{ color: C.ink40, fontSize: 11.5, alignSelf: "flex-start", background: "none", border: "none", cursor: "pointer" }}>← Back</button>
+            <div style={{ color: C.ink60, fontSize: 12.5 }}>A photo is required — this becomes your badge photo, and helps Admins confirm who they're approving.</div>
             <div className="rounded-2xl relative overflow-hidden mx-auto" style={{ background: "#0B1524", border: `1px solid ${C.inkLine}`, width: "100%", maxWidth: 320, aspectRatio: "1 / 1" }}>
               {!photoBlob ? (
                 cameraError ? (
@@ -205,8 +221,7 @@ export default function LoginFlow({ auth }) {
               <GhostButton icon={RotateCcw} onClick={retakePhoto}>Retake</GhostButton>
             )}
             {error && <div style={{ color: C.alert, fontSize: 12 }}>{error}</div>}
-            <PrimaryButton icon={Check} disabled={!photoBlob || busy} onClick={() => finishSignup(photoBlob)}>{busy ? "Submitting…" : "Submit request"}</PrimaryButton>
-            {!photoBlob && <GhostButton icon={SkipForward} onClick={() => finishSignup(null)}>Skip photo, submit request</GhostButton>}
+            <PrimaryButton icon={Check} disabled={!photoBlob || busy} onClick={finishSignup}>{busy ? "Submitting…" : "Submit request"}</PrimaryButton>
           </>
         )}
 

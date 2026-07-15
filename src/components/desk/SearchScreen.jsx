@@ -21,7 +21,7 @@ export default function SearchScreen({ deskMode, setDeskMode, onSelect, onWalkIn
     // Matches name (using the indexed tsvector), phone, or email.
     supabase
       .from("registrations")
-      .select("id, reg_code, full_name, phone, email, category, person_role, registered, badge_status, photo_status")
+      .select("id, reg_code, full_name, phone, email, category, registered, badge_status, photo_status")
       .or(`full_name.ilike.%${trimmed}%,phone.ilike.%${trimmed}%,email.ilike.%${trimmed}%`)
       .limit(25)
       .then(({ data, error }) => {

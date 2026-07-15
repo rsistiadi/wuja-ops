@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { ArrowRight } from "lucide-react";
-import { C, CATEGORY_META, genRegCode } from "../../lib/tokens";
+import { ArrowRight, Search, X } from "lucide-react";
+import { C, genRegCode } from "../../lib/tokens";
 import { TopBar, PrimaryButton, Dropdown } from "../shared/UI";
+import { CATEGORY_OPTIONS, PERFORMER_COLOR_OPTIONS, PERFORMER_COLOR_VENUE } from "../../lib/checkpointAccess";
 import { supabase } from "../../lib/supabaseClient";
 
 export default function WalkInForm({ buses, onCancel, onCreate }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [category, setCategory] = useState("guest");
-  const [role, setRole] = useState("participant");
+  const [category, setCategory] = useState("committee");
+  const [performerColor, setPerformerColor] = useState("yellow");
+  const [linkedQuery, setLinkedQuery] = useState("");
+  const [linkedResults, setLinkedResults] = useState([]);
+  const [linkedPerson, setLinkedPerson] = useState(null);
   const [assignedBusId, setAssignedBusId] = useState("");
   const [contactShareable, setContactShareable] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -17,13 +21,17 @@ export default function WalkInForm({ buses, onCancel, onCreate }) {
 
   useEffect(() => { if (buses.length && !assignedBusId) setAssignedBusId(buses[0].id); }, [buses, assignedBusId]);
 
-  const canSubmit = name.trim().length > 1 && phone.trim().length > 3;
+  useEffect(() => {
+    if (category !== "accompanying" || linkedQuery.trim().length < 2) { setLinkedResults([]); return; }
+    supabase.from("registrations").select("id, full_name, category").ilike("full_name", `%${linkedQuery.trim()}%`).limit(15)
+      .then(({ data }) => setLinkedResults(data || []));
+  }, [category, linkedQuery]);
+
+  const canSubmit = name.trim().length > 1 && phone.trim().length > 3 && (category !== "accompanying" || linkedPerson);
 
   const submit = async () => {
     setSaving(true); setError("");
-    // Unique-constraint collision on reg_code is possible but rare (see
-    // genRegCode's comment) — retry once with a fresh code if it happens,
-    // rather than failing the whole walk-in on a one-in-thousands fluke.
+    let created = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       const { data, error } = await supabase
         .from("registrations")
@@ -33,17 +41,29 @@ export default function WalkInForm({ buses, onCancel, onCreate }) {
           phone: phone.trim(),
           email: email.trim() || null,
           category,
-          person_role: category === "guest" ? role : null,
+          performer_color: category === "performer" ? performerColor : null,
+          linked_registration_id: category === "accompanying" ? linkedPerson.id : null,
           assigned_bus_id: assignedBusId || null,
           contact_shareable: contactShareable,
         })
         .select()
         .single();
 
-      if (!error) { setSaving(false); onCreate(data); return; }
+      if (!error) { created = data; break; }
       if (error.code !== "23505" || attempt === 1) { setSaving(false); setError(error.message); return; }
       // 23505 = unique_violation on reg_code — loop retries with a new code
     }
+
+    // Performer access is granted via the named guest list of the one
+    // venue their color maps to, not the category rule everyone else uses.
+    if (created && category === "performer") {
+      const venueName = PERFORMER_COLOR_VENUE[performerColor];
+      const { data: cp } = await supabase.from("checkpoints").select("id").eq("name", venueName).maybeSingle();
+      if (cp) await supabase.from("checkpoint_named_list").upsert({ checkpoint_id: cp.id, registration_id: created.id });
+    }
+
+    setSaving(false);
+    if (created) onCreate(created);
   };
 
   return (
@@ -54,36 +74,36 @@ export default function WalkInForm({ buses, onCancel, onCreate }) {
         <Field label="Phone"><input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="08xx-xxxx-xxxx" style={inputStyle} /></Field>
         <Field label="Email (optional)"><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@email.com" style={inputStyle} /></Field>
 
-        <div>
-          <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600, marginBottom: 8 }}>Category</div>
-          <div className="flex gap-2">
-            {Object.entries(CATEGORY_META).map(([key, meta]) => {
-              const active = category === key;
-              return (
-                <button key={key} onClick={() => setCategory(key)} className="flex-1 rounded-lg"
-                  style={{ padding: "9px 4px", fontSize: 10.5, fontWeight: 700, background: active ? `${meta.color}22` : C.ink, border: `1px solid ${active ? meta.color : C.inkLine}`, color: active ? meta.color : C.ink60, cursor: "pointer" }}>
-                  {meta.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <Field label="Badge category"><Dropdown value={category} onChange={setCategory} options={CATEGORY_OPTIONS} /></Field>
 
-        {category === "guest" && (
+        {category === "performer" && (
+          <Field label="Performer color group"><Dropdown value={performerColor} onChange={setPerformerColor} options={PERFORMER_COLOR_OPTIONS} /></Field>
+        )}
+
+        {category === "accompanying" && (
           <div>
-            <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600, marginBottom: 8 }}>Participant or spouse?</div>
-            <div className="flex gap-2">
-              {[{ k: "participant", l: "Participant" }, { k: "spouse", l: "Spouse" }].map((t) => {
-                const active = role === t.k;
-                return (
-                  <button key={t.k} onClick={() => setRole(t.k)} className="flex-1 rounded-lg"
-                    style={{ padding: "9px 0", fontSize: 12, fontWeight: 700, background: active ? C.gold : C.ink, border: `1px solid ${active ? C.gold : C.inkLine}`, color: active ? C.ink : C.ink60, cursor: "pointer" }}>{t.l}</button>
-                );
-              })}
-            </div>
-            <div style={{ color: C.ink40, fontSize: 10.5, marginTop: 6 }}>
-              Linking a spouse to an existing participant record is an Admin action (done from the Buses/roster or a future "link" tool) — not part of this walk-in form.
-            </div>
+            <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600, marginBottom: 8 }}>Accompanying whom?</div>
+            {linkedPerson ? (
+              <div className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: C.ink, border: `1px solid ${C.gold}` }}>
+                <span style={{ color: C.parchment, fontSize: 13, fontWeight: 600 }}>{linkedPerson.full_name}</span>
+                <button onClick={() => setLinkedPerson(null)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={15} color={C.ink40} /></button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 rounded-xl px-3" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
+                  <Search size={14} color={C.ink40} />
+                  <input value={linkedQuery} onChange={(e) => setLinkedQuery(e.target.value)} placeholder="Search name…"
+                    className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 13, padding: "10px 4px", border: "none" }} />
+                </div>
+                {linkedResults.length > 0 && (
+                  <div className="flex flex-col gap-1.5 mt-2">
+                    {linkedResults.map((p) => (
+                      <button key={p.id} onClick={() => { setLinkedPerson(p); setLinkedQuery(""); setLinkedResults([]); }} className="rounded-lg px-3 py-2 text-left" style={{ background: C.inkSoft, border: "none", color: C.parchment, fontSize: 12.5, cursor: "pointer" }}>{p.full_name}</button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 

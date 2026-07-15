@@ -156,7 +156,7 @@ function GuestListPicker({ checkpointId, onBack, onDone }) {
 
   useEffect(() => {
     if (q.trim().length < 2) { setResults([]); return; }
-    supabase.from("registrations").select("id, full_name, category, person_role").ilike("full_name", `%${q.trim()}%`).limit(30).then(({ data }) => setResults(data || []));
+    supabase.from("registrations").select("id, full_name, category").ilike("full_name", `%${q.trim()}%`).limit(30).then(({ data }) => setResults(data || []));
   }, [q]);
 
   const toggle = async (regId) => {

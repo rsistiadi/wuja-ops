@@ -40,7 +40,7 @@ export default function BusOpsMode() {
     if (!busId || !legId) return;
     setLoading(true);
     const [rosterRes, statusRes] = await Promise.all([
-      supabase.from("registrations").select("id, full_name, category, person_role, assigned_bus_id, medical_note").eq("assigned_bus_id", busId),
+      supabase.from("registrations").select("id, full_name, category, assigned_bus_id, medical_note").eq("assigned_bus_id", busId),
       supabase.from("bus_trip_status").select("registration_id, bus_id, status, method, reason").eq("trip_leg_id", legId),
     ]);
     const rosterData = rosterRes.data || [];
@@ -51,7 +51,7 @@ export default function BusOpsMode() {
     const rosterIds = new Set(rosterData.map((r) => r.id));
     const addedIds = statuses.filter((s) => s.bus_id === busId && s.status === "boarded" && !rosterIds.has(s.registration_id)).map((s) => s.registration_id);
     if (addedIds.length) {
-      const { data: addedRegs } = await supabase.from("registrations").select("id, full_name, category, person_role, assigned_bus_id").in("id", addedIds);
+      const { data: addedRegs } = await supabase.from("registrations").select("id, full_name, category, assigned_bus_id").in("id", addedIds);
       setAddedRiders(addedRegs || []);
     } else {
       setAddedRiders([]);

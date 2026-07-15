@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { ScanLine, UserPlus } from "lucide-react";
-import { C } from "../../lib/tokens";
+import { C, CATEGORY_META, categoryLabel } from "../../lib/tokens";
 import { TopBar, Dropdown } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
 import { isAllowed } from "../../lib/checkpointAccess";
@@ -57,12 +57,18 @@ export default function EventScanMode() {
     setStats((s) => ({ scanned: s.scanned + 1, allowed: s.allowed + (allowed ? 1 : 0), denied: s.denied + (allowed ? 0 : 1) }));
   };
 
+  const notAllowedDetail = (person) => {
+    const required = (cp.categories || []).map((c) => CATEGORY_META[c]?.label || c);
+    const requiredText = required.length ? `This checkpoint requires: ${required.join(", ")}` : "This checkpoint has no open category — named guest list only.";
+    return `Category: ${categoryLabel(person)} · ${requiredText}`;
+  };
+
   const resolveScan = async (person) => {
     const allowed = isAllowed(person, cp, namedIds);
     await record(person, allowed, "scan");
     return allowed
-      ? { color: C.ok, headline: `ALLOWED — ${person.full_name}`, detail: person.category + (person.medical_note ? " · has a medical note" : "") }
-      : { color: C.alert, headline: `NOT ALLOWED — ${person.full_name}`, detail: "Category or guest list doesn't match this checkpoint's rule." };
+      ? { color: C.ok, headline: `ALLOWED — ${person.full_name}`, detail: categoryLabel(person) + (person.medical_note ? " · has a medical note" : "") }
+      : { color: C.alert, headline: `NOT ALLOWED — ${person.full_name}`, detail: notAllowedDetail(person) };
   };
 
   const resolveManual = async (person, reason) => {
@@ -71,7 +77,7 @@ export default function EventScanMode() {
     await record(person, allowed, "manual", reason);
     return allowed
       ? { color: C.ok, headline: `ALLOWED (manual) — ${person.full_name}`, detail: `Reason logged: "${reason}"` }
-      : { color: C.alert, headline: `NOT ALLOWED — ${person.full_name}`, detail: `Manual entry, but rule still denies. Reason logged: "${reason}"` };
+      : { color: C.alert, headline: `NOT ALLOWED — ${person.full_name}`, detail: `${notAllowedDetail(person)} · Manual entry, reason logged: "${reason}"` };
   };
 
   if (!cp) {

@@ -5,8 +5,7 @@ export const C = {
   parchment: "#F4F0E6",
   gold: "#C89A3C",
   goldDeep: "#9C7522",
-  organizer: "#3E8C79",
-  guest: "#4C6FA0",
+  guest: "#4C6FA0", // kept as a generic "blue" token still used elsewhere (e.g. bus "elsewhere" pills)
   speaker: "#8B4C6C",
   alert: "#B0473E",
   ok: "#3E8C63",
@@ -14,16 +13,26 @@ export const C = {
   ink40: "rgba(244,240,230,0.4)",
 };
 
-// category = DB tier ('organizer' | 'guest' | 'speaker')
-// person_role = only meaningful when category === 'guest' ('participant' | 'spouse')
+// The 12-category badge scheme, replacing the old 3-tier
+// organizer/guest/speaker model. Every attendee AND every crew/admin/
+// superadmin login is a registrations row with one of these — see the
+// venue access table this was built from.
 export const CATEGORY_META = {
-  organizer: { label: "Organizer", color: C.organizer },
-  guest: { label: "Participant / Spouse", color: C.guest },
-  speaker: { label: "Speaker / Performer", color: C.speaker },
+  vip_pass: { label: "VIP (Pass)", color: "#C89A3C" },
+  vip: { label: "VIP", color: "#9C7522" },
+  speaker: { label: "Speaker", color: "#8B4C6C" },
+  accompanying: { label: "Accompanying", color: "#4C6FA0" },
+  board_member: { label: "Board Member", color: "#3E8C79" },
+  delegate_pass: { label: "Delegate (Pass)", color: "#6B5CA0" },
+  delegate: { label: "Delegate", color: "#8B7BC0" },
+  youth_wing: { label: "Youth Wing", color: "#4FA88F" },
+  exhibitor: { label: "Exhibitor", color: "#B5763C" },
+  performer: { label: "Performer", color: "#C15D80" },
+  volunteer: { label: "Volunteer", color: "#5F9B5F" },
+  committee: { label: "Committee", color: "#5C7FB5" },
 };
 
 export function categoryLabel(reg) {
-  if (reg.category === "guest") return reg.person_role === "spouse" ? "Spouse" : "Participant";
   return CATEGORY_META[reg.category]?.label || reg.category;
 }
 

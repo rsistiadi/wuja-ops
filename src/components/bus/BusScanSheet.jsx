@@ -22,7 +22,7 @@ export default function BusScanSheet({ bus, buses, roster, legId, onClose, onCha
   const runSearch = async (q) => {
     setQuery(q);
     if (q.trim().length < 2) { setSearchResults([]); setSearchError(""); return; }
-    const { data, error } = await supabase.from("registrations").select("id, full_name, category, person_role, assigned_bus_id").ilike("full_name", `%${q.trim()}%`).limit(20);
+    const { data, error } = await supabase.from("registrations").select("id, full_name, category, assigned_bus_id").ilike("full_name", `%${q.trim()}%`).limit(20);
     if (error) { setSearchError(error.message); return; }
     setSearchError("");
     setSearchResults(data || []);
