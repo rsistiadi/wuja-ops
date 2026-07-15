@@ -84,8 +84,8 @@ export default function EventScanMode() {
         <button onClick={() => setSheet("scan")} className="w-full flex items-center justify-center gap-2.5 rounded-xl" style={{ background: C.gold, color: C.ink, fontWeight: 700, fontSize: 16, padding: "16px 0", border: "none", cursor: "pointer" }}><ScanLine size={20} /> SCAN BADGE</button>
         <button onClick={() => setSheet("manual")} className="w-full flex items-center justify-center gap-2 rounded-xl" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, color: C.parchment, fontWeight: 700, fontSize: 12.5, padding: "10px 0", cursor: "pointer" }}><UserPlus size={14} /> Manual add (badge unavailable)</button>
 
-        {sheet === "scan" && <ScanSheet title="Scan badge" onClose={() => setSheet(null)} onResolve={resolveScan} requireReasonAlways={false} simulateLabel="Placeholder for real QR scanning — search and tap a name to simulate scanning that badge." />}
-        {sheet === "manual" && <ScanSheet title="Manual add" onClose={() => setSheet(null)} onResolve={resolveManual} requireReasonAlways={true} />}
+        {sheet === "scan" && <ScanSheet title="Scan badge" onClose={() => setSheet(null)} onResolve={resolveScan} requireReasonAlways={false} useCamera={true} />}
+        {sheet === "manual" && <ScanSheet title="Manual add" onClose={() => setSheet(null)} onResolve={resolveManual} requireReasonAlways={true} useCamera={false} />}
       </div>
     </div>
   );

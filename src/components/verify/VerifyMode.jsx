@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Search, Contact, Heart } from "lucide-react";
+import { Search, Contact, Heart, ScanLine } from "lucide-react";
 import { C, CATEGORY_META, categoryLabel, registrationStatus } from "../../lib/tokens";
 import { TopBar, PrimaryButton, PersonTag, StatusPill, PersonAvatar, useDebouncedValue } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
 import { getBadgePhotoUrl } from "../../lib/photoStorage";
+import { extractBadgeNumber } from "../../lib/qrScan";
+import { lookupByBadgeNumber } from "../../lib/badgeLookup";
+import QrScannerView from "../shared/QrScannerView";
 
 export default function VerifyMode() {
   const [query, setQuery] = useState("");
@@ -11,6 +14,8 @@ export default function VerifyMode() {
   const [results, setResults] = useState([]);
   const [selected, setSelected] = useState(null);
   const [photoUrl, setPhotoUrl] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [notFound, setNotFound] = useState("");
 
   useEffect(() => {
     const trimmed = debounced.trim();
@@ -30,19 +35,29 @@ export default function VerifyMode() {
     }
   };
 
+  const onQrDetected = async (decodedText) => {
+    setScanning(false);
+    const badgeNumber = extractBadgeNumber(decodedText);
+    const found = await lookupByBadgeNumber(badgeNumber);
+    if (!found) { setNotFound(`No registration matches badge "${badgeNumber}".`); return; }
+    setNotFound("");
+    select(found);
+  };
+
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col" style={{ position: "relative" }}>
       <TopBar title="Scan & Verify" subtitle="Read-only identity check" accent={C.gold} />
 
       {!selected ? (
         <>
           <div className="px-5 pb-3" style={{ background: C.ink }}>
-            <div className="rounded-lg px-3 py-2 mb-3 flex items-start gap-2" style={{ background: `${C.gold}14`, border: `1px solid ${C.gold}44` }}>
-              <span style={{ color: C.gold, fontSize: 10.5, lineHeight: 1.3 }}>Placeholder for real QR scanning — search to represent that scan.</span>
-            </div>
+            <button onClick={() => { setScanning(true); setNotFound(""); }} className="w-full flex items-center justify-center gap-2.5 rounded-xl mb-3" style={{ background: C.gold, color: C.ink, fontWeight: 700, fontSize: 15, padding: "13px 0", border: "none", cursor: "pointer" }}>
+              <ScanLine size={18} /> SCAN BADGE
+            </button>
+            {notFound && <div style={{ color: C.alert, fontSize: 12, marginBottom: 8 }}>{notFound}</div>}
             <div className="flex items-center gap-2 rounded-xl px-3" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}` }}>
               <Search size={16} color={C.ink60} />
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, phone, or badge no."
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Or search name, phone, or badge no."
                 className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 14, padding: "11px 4px", border: "none" }} />
             </div>
           </div>
@@ -83,6 +98,8 @@ export default function VerifyMode() {
           <div className="mt-5"><PrimaryButton icon={Search} onClick={() => { setSelected(null); setQuery(""); }}>Look up another</PrimaryButton></div>
         </div>
       )}
+
+      {scanning && <QrScannerView title="Scan badge" onResult={onQrDetected} onCancel={() => setScanning(false)} />}
     </div>
   );
 }

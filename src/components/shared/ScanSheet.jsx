@@ -1,12 +1,18 @@
 import React, { useState } from "react";
-import { X, Search, ShieldAlert } from "lucide-react";
+import { X, Search, ShieldAlert, ScanLine } from "lucide-react";
 import { C } from "../../lib/tokens";
 import { PersonTag } from "./UI";
 import { supabase } from "../../lib/supabaseClient";
+import { extractBadgeNumber } from "../../lib/qrScan";
+import { lookupByBadgeNumber } from "../../lib/badgeLookup";
+import QrScannerView from "./QrScannerView";
 
 // onResolve(person, reason|null) -> { needsReason?: true } | { color, headline, detail }
-export default function ScanSheet({ title, onClose, onResolve, requireReasonAlways, simulateLabel }) {
-  const [step, setStep] = useState("search"); // search | reason | result
+// useCamera=true opens a real QR scanner first (used for "Scan badge");
+// useCamera=false goes straight to search (used for "Manual add", where
+// there's deliberately no badge to scan).
+export default function ScanSheet({ title, onClose, onResolve, requireReasonAlways, useCamera }) {
+  const [step, setStep] = useState(useCamera ? "scanning" : "search"); // scanning | search | reason | result
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [person, setPerson] = useState(null);
@@ -20,7 +26,7 @@ export default function ScanSheet({ title, onClose, onResolve, requireReasonAlwa
     setResults(data || []);
   };
 
-  const reset = () => { setStep("search"); setQuery(""); setResults([]); setPerson(null); setReason(""); setResultView(null); };
+  const reset = () => { setStep(useCamera ? "scanning" : "search"); setQuery(""); setResults([]); setPerson(null); setReason(""); setResultView(null); };
 
   const selectPerson = async (p) => {
     setPerson(p);
@@ -37,10 +43,25 @@ export default function ScanSheet({ title, onClose, onResolve, requireReasonAlwa
     setStep("result");
   };
 
-  const simulateUnrecognized = () => {
-    setResultView({ color: C.alert, headline: "Badge not recognized", detail: "No matching record for this QR — do not admit. Verify identity manually or contact registration." });
-    setStep("result");
+  const onQrDetected = async (decodedText) => {
+    const badgeNumber = extractBadgeNumber(decodedText);
+    try {
+      const found = await lookupByBadgeNumber(badgeNumber);
+      if (!found) {
+        setResultView({ color: C.alert, headline: "Badge not recognized", detail: `No registration matches badge "${badgeNumber}". Do not admit — verify identity manually or contact registration.` });
+        setStep("result");
+        return;
+      }
+      await selectPerson(found);
+    } catch (e) {
+      setResultView({ color: C.alert, headline: "Lookup failed", detail: e.message });
+      setStep("result");
+    }
   };
+
+  if (step === "scanning") {
+    return <QrScannerView title={title} onResult={onQrDetected} onCancel={() => setStep("search")} />;
+  }
 
   return (
     <div className="absolute inset-0 flex items-end" style={{ background: "rgba(10,15,26,0.82)" }}>
@@ -52,11 +73,10 @@ export default function ScanSheet({ title, onClose, onResolve, requireReasonAlwa
 
         {step === "search" && (
           <>
-            {simulateLabel && (
-              <div className="rounded-lg px-3 py-2 mb-3 flex items-start gap-2" style={{ background: `${C.gold}14`, border: `1px solid ${C.gold}44` }}>
-                <ShieldAlert size={13} color={C.gold} style={{ marginTop: 1, flexShrink: 0 }} />
-                <span style={{ color: C.gold, fontSize: 10.5, lineHeight: 1.3 }}>{simulateLabel}</span>
-              </div>
+            {useCamera && (
+              <button onClick={() => setStep("scanning")} className="flex items-center justify-center gap-1.5 mb-3 rounded-lg" style={{ color: C.gold, fontSize: 12, fontWeight: 700, padding: "9px 0", border: `1px dashed ${C.gold}66`, background: "none", cursor: "pointer" }}>
+                <ScanLine size={13} /> Try scanning again
+              </button>
             )}
             <div className="flex items-center gap-2 rounded-xl px-3 mb-3" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}` }}>
               <Search size={14} color={C.ink40} />
@@ -71,9 +91,6 @@ export default function ScanSheet({ title, onClose, onResolve, requireReasonAlwa
                 </button>
               ))}
             </div>
-            <button onClick={simulateUnrecognized} className="flex items-center justify-center gap-1.5 mt-3" style={{ color: C.alert, fontSize: 11.5, fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
-              <ShieldAlert size={13} /> Simulate an unrecognized / fake badge
-            </button>
           </>
         )}
 

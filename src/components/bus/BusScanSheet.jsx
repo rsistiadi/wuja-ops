@@ -1,11 +1,14 @@
 import React, { useState } from "react";
-import { X, Search, AlertTriangle, ShieldAlert } from "lucide-react";
+import { X, Search, AlertTriangle, ScanLine } from "lucide-react";
 import { C } from "../../lib/tokens";
 import { PersonTag } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
+import { extractBadgeNumber } from "../../lib/qrScan";
+import { lookupByBadgeNumber } from "../../lib/badgeLookup";
+import QrScannerView from "../shared/QrScannerView";
 
 export default function BusScanSheet({ bus, buses, roster, legId, onClose, onChanged }) {
-  const [stage, setStage] = useState("pick"); // pick | searchAll | action | result
+  const [stage, setStage] = useState("scanning"); // scanning | pick | searchAll | action | result
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [person, setPerson] = useState(null);
@@ -13,7 +16,7 @@ export default function BusScanSheet({ bus, buses, roster, legId, onClose, onCha
   const [resultView, setResultView] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const reset = () => { setStage("pick"); setQuery(""); setSearchResults([]); setPerson(null); setReason(""); setResultView(null); };
+  const reset = () => { setStage("scanning"); setQuery(""); setSearchResults([]); setPerson(null); setReason(""); setResultView(null); };
 
   const runSearch = async (q) => {
     setQuery(q);
@@ -32,10 +35,10 @@ export default function BusScanSheet({ bus, buses, roster, legId, onClose, onCha
     if (error) throw error;
   };
 
-  const pickRoster = async (p) => {
+  const boardPerson = async (p, method) => {
     setBusy(true);
     try {
-      await writeStatus(p.id, "boarded", bus.id, "scan");
+      await writeStatus(p.id, "boarded", bus.id, method);
       setPerson(p);
       setResultView({ color: C.ok, headline: "Boarded ✓", detail: `${p.full_name} — ${bus.name}` });
       setStage("result");
@@ -48,16 +51,34 @@ export default function BusScanSheet({ bus, buses, roster, legId, onClose, onCha
     }
   };
 
-  const pickFromAll = async (p) => {
+  const routePerson = async (p, method) => {
     const exception = p.assigned_bus_id !== bus.id;
-    if (!exception) { await pickRoster(p); return; }
+    if (!exception) { await boardPerson(p, method); return; }
     setPerson(p); setReason(""); setStage("action");
   };
 
-  const pickUnrecognized = () => {
-    setResultView({ color: C.alert, headline: "Badge not recognized", detail: "No matching record for this QR — do not admit. Verify identity manually or contact registration." });
-    setStage("result");
+  // --- Real QR scan result: look up the decoded badge number against
+  // the live database, not a canned "simulate" button anymore. ---
+  const onQrDetected = async (decodedText) => {
+    const badgeNumber = extractBadgeNumber(decodedText);
+    setBusy(true);
+    try {
+      const found = await lookupByBadgeNumber(badgeNumber);
+      if (!found) {
+        setResultView({ color: C.alert, headline: "Badge not recognized", detail: `No registration matches badge "${badgeNumber}". Do not admit — verify identity manually or contact registration.` });
+        setStage("result");
+        return;
+      }
+      await routePerson(found, "scan");
+    } catch (e) {
+      setResultView({ color: C.alert, headline: "Lookup failed", detail: e.message });
+      setStage("result");
+    } finally {
+      setBusy(false);
+    }
   };
+
+  const pickFromManual = async (p) => { await routePerson(p, "manual"); };
 
   const confirmExceptionNotRiding = async () => {
     setBusy(true);
@@ -81,35 +102,35 @@ export default function BusScanSheet({ bus, buses, roster, legId, onClose, onCha
     } finally { setBusy(false); }
   };
 
+  if (stage === "scanning") {
+    return <QrScannerView title={`Scan badge — ${bus.name}`} onResult={onQrDetected} onCancel={() => setStage("pick")} />;
+  }
+
   return (
     <div className="absolute inset-0 flex items-end" style={{ background: "rgba(10,15,26,0.82)" }}>
       <div className="w-full rounded-t-2xl p-5" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, maxHeight: "88%", display: "flex", flexDirection: "column" }}>
         <div className="flex items-center justify-between mb-3">
-          <span style={{ color: C.parchment, fontSize: 14, fontWeight: 700 }}>Scan badge — {bus.name}</span>
+          <span style={{ color: C.parchment, fontSize: 14, fontWeight: 700 }}>Badge unavailable — {bus.name}</span>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.ink40} /></button>
         </div>
 
         {(stage === "pick" || stage === "searchAll") && (
-          <div className="rounded-lg px-3 py-2 mb-3 flex items-start gap-2" style={{ background: `${C.gold}14`, border: `1px solid ${C.gold}44` }}>
-            <ShieldAlert size={13} color={C.gold} style={{ marginTop: 1, flexShrink: 0 }} />
-            <span style={{ color: C.gold, fontSize: 10.5, lineHeight: 1.3 }}>Placeholder for real QR scanning — tap a name below to simulate scanning that badge until camera-based scanning is wired in.</span>
-          </div>
+          <button onClick={() => setStage("scanning")} className="flex items-center justify-center gap-1.5 mb-3 rounded-lg" style={{ color: C.gold, fontSize: 12, fontWeight: 700, padding: "9px 0", border: `1px dashed ${C.gold}66`, background: "none", cursor: "pointer" }}>
+            <ScanLine size={13} /> Try scanning again
+          </button>
         )}
 
         {stage === "pick" && (
           <div className="overflow-y-auto flex flex-col gap-1.5">
-            <div style={{ color: C.ink40, fontSize: 10.5, fontWeight: 700, marginBottom: 2 }}>MATCHES {bus.name.toUpperCase()} ROSTER FIRST</div>
+            <div style={{ color: C.ink40, fontSize: 10.5, fontWeight: 700, marginBottom: 2 }}>{bus.name.toUpperCase()} ROSTER</div>
             {roster.map((p) => (
-              <button key={p.id} onClick={() => pickRoster(p)} disabled={busy} className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg" style={{ background: C.inkSoft, border: "none", cursor: "pointer" }}>
+              <button key={p.id} onClick={() => pickFromManual(p)} disabled={busy} className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg" style={{ background: C.inkSoft, border: "none", cursor: "pointer" }}>
                 <span style={{ color: C.parchment, fontSize: 12.5 }}>{p.full_name}</span>
                 <PersonTag reg={p} />
               </button>
             ))}
             <button onClick={() => setStage("searchAll")} className="flex items-center justify-center gap-1.5 mt-2 rounded-lg" style={{ color: C.gold, fontSize: 12, fontWeight: 700, padding: "9px 0", border: `1px dashed ${C.gold}66`, background: "none", cursor: "pointer" }}>
               <Search size={13} /> Not here — search all registrants
-            </button>
-            <button onClick={pickUnrecognized} className="flex items-center justify-center gap-1.5 mt-1" style={{ color: C.alert, fontSize: 11.5, fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
-              <ShieldAlert size={13} /> Simulate an unrecognized / fake badge
             </button>
           </div>
         )}
@@ -123,7 +144,7 @@ export default function BusScanSheet({ bus, buses, roster, legId, onClose, onCha
             </div>
             <div className="overflow-y-auto flex flex-col gap-1.5">
               {searchResults.map((p) => (
-                <button key={p.id} onClick={() => pickFromAll(p)} className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg" style={{ background: C.inkSoft, border: "none", cursor: "pointer" }}>
+                <button key={p.id} onClick={() => pickFromManual(p)} className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg" style={{ background: C.inkSoft, border: "none", cursor: "pointer" }}>
                   <span style={{ color: C.parchment, fontSize: 12.5 }}>{p.full_name}</span>
                   <span style={{ color: C.ink40, fontSize: 10.5 }}>{buses.find((b) => b.id === p.assigned_bus_id)?.name || "Unassigned"}</span>
                 </button>

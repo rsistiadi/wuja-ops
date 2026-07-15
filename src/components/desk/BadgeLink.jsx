@@ -3,20 +3,23 @@ import { ScanLine, Check, ArrowRight } from "lucide-react";
 import { C, CATEGORY_META } from "../../lib/tokens";
 import { TopBar, PrimaryButton, PersonTag, StepDots } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
+import { extractBadgeNumber } from "../../lib/qrScan";
+import QrScannerView from "../shared/QrScannerView";
 
 export default function BadgeLink({ reg, onBack, onNext }) {
   const [badge, setBadge] = useState("");
   const [scanned, setScanned] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [contactShareable, setContactShareable] = useState(!!reg.contact_shareable);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const meta = CATEGORY_META[reg.category];
 
-  // Placeholder for real QR hardware/camera scanning — wires up the same
-  // way as photo capture (getUserMedia + a barcode-detection library like
-  // the browser's native BarcodeDetector API where available). Manual
-  // entry below is the reliable fallback either way.
-  const simulateScan = () => { setBadge(`B-${reg.id.slice(-4)}`); setScanned(true); };
+  const onQrResult = (decodedText) => {
+    setBadge(extractBadgeNumber(decodedText));
+    setScanned(true);
+    setScanning(false);
+  };
 
   const submit = async () => {
     if (!badge.trim()) return;
@@ -31,7 +34,7 @@ export default function BadgeLink({ reg, onBack, onNext }) {
   };
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col" style={{ position: "relative" }}>
       <TopBar title="Link Badge" subtitle={reg.full_name} onBack={onBack} accent={meta.color} />
       <StepDots step={0} total={3} />
       <div className="flex-1 overflow-y-auto px-5 py-6 flex flex-col gap-5" style={{ background: C.inkSoft }}>
@@ -43,7 +46,7 @@ export default function BadgeLink({ reg, onBack, onNext }) {
 
         <div>
           <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600, marginBottom: 8 }}>Scan the pre-printed badge QR</div>
-          <button onClick={simulateScan} className="w-full flex flex-col items-center justify-center gap-3 rounded-2xl"
+          <button onClick={() => setScanning(true)} className="w-full flex flex-col items-center justify-center gap-3 rounded-2xl"
             style={{ background: C.ink, border: `1.5px dashed ${scanned ? C.ok : C.gold}`, padding: "30px 16px", cursor: "pointer" }}>
             <ScanLine size={34} color={scanned ? C.ok : C.gold} />
             <div style={{ color: scanned ? C.ok : C.parchment, fontSize: 13, fontWeight: 600 }}>{scanned ? "Badge scanned" : "Tap to scan badge QR"}</div>
@@ -75,6 +78,8 @@ export default function BadgeLink({ reg, onBack, onNext }) {
       <div className="px-5 pb-7 pt-3" style={{ background: C.inkSoft }}>
         <PrimaryButton icon={ArrowRight} disabled={!badge.trim() || saving} onClick={submit}>{saving ? "Saving…" : "Continue to photo"}</PrimaryButton>
       </div>
+
+      {scanning && <QrScannerView title="Scan badge QR" onResult={onQrResult} onCancel={() => setScanning(false)} />}
     </div>
   );
 }
