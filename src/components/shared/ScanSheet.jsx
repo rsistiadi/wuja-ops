@@ -15,14 +15,17 @@ export default function ScanSheet({ title, onClose, onResolve, requireReasonAlwa
   const [step, setStep] = useState(useCamera ? "scanning" : "search"); // scanning | search | reason | result
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
+  const [searchError, setSearchError] = useState("");
   const [person, setPerson] = useState(null);
   const [reason, setReason] = useState("");
   const [resultView, setResultView] = useState(null);
 
   const runSearch = async (q) => {
     setQuery(q);
-    if (q.trim().length < 2) { setResults([]); return; }
-    const { data } = await supabase.from("registrations").select("id, full_name, category, person_role, medical_note").ilike("full_name", `%${q.trim()}%`).limit(20);
+    if (q.trim().length < 2) { setResults([]); setSearchError(""); return; }
+    const { data, error } = await supabase.from("registrations").select("id, full_name, category, person_role, medical_note").ilike("full_name", `%${q.trim()}%`).limit(20);
+    if (error) { setSearchError(error.message); return; }
+    setSearchError("");
     setResults(data || []);
   };
 
@@ -83,6 +86,7 @@ export default function ScanSheet({ title, onClose, onResolve, requireReasonAlwa
               <input autoFocus value={query} onChange={(e) => runSearch(e.target.value)} placeholder="Search entire database…"
                 className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 13, padding: "9px 4px", border: "none" }} />
             </div>
+            {searchError && <div style={{ color: C.alert, fontSize: 11.5, marginBottom: 8 }}>{searchError}</div>}
             <div className="overflow-y-auto flex flex-col gap-1.5">
               {results.map((p) => (
                 <button key={p.id} onClick={() => selectPerson(p)} className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg" style={{ background: C.inkSoft, border: "none", cursor: "pointer" }}>

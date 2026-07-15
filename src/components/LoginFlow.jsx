@@ -177,7 +177,7 @@ export default function LoginFlow({ auth }) {
           <>
             <button onClick={() => setStage("request-role")} style={{ color: C.ink40, fontSize: 11.5, alignSelf: "flex-start", background: "none", border: "none", cursor: "pointer" }}>← Back</button>
             <div style={{ color: C.ink60, fontSize: 12.5 }}>A photo helps Admins know who they're approving — optional but recommended.</div>
-            <div className="rounded-2xl relative overflow-hidden" style={{ background: "#0B1524", border: `1px solid ${C.inkLine}`, height: 260 }}>
+            <div className="rounded-2xl relative overflow-hidden mx-auto" style={{ background: "#0B1524", border: `1px solid ${C.inkLine}`, width: "100%", maxWidth: 320, aspectRatio: "1 / 1" }}>
               {!photoBlob ? (
                 cameraError ? (
                   <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-6">

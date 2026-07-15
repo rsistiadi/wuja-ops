@@ -18,7 +18,12 @@ export default function AdminCrew({ callCrewAdmin }) {
   const [error, setError] = useState("");
 
   const refetch = async () => {
-    const { data } = await supabase.from("crew").select("*").order("created_at");
+    const { data, error } = await supabase
+      .from("crew")
+      .select("id, full_name, auth_user_id, requested_role, approved_role, status, created_at, photo_url")
+      .order("created_at");
+    if (error) { setError(`Couldn't load crew list: ${error.message}`); return; }
+    setError("");
     setCrew(data || []);
     const withPhotos = (data || []).filter((c) => c.photo_url && !photoUrls[c.id]);
     for (const c of withPhotos) {

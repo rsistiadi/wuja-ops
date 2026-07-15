@@ -94,7 +94,7 @@ export default function PhotoCapture({ reg, allowSkip, onBack, onNext }) {
           Align face and shoulders within the frame — same framing for everyone keeps badges consistent.
         </div>
 
-        <div className="flex-1 rounded-2xl relative overflow-hidden" style={{ background: "#0B1524", border: `1px solid ${C.inkLine}`, minHeight: 340 }}>
+        <div className="rounded-2xl relative overflow-hidden mx-auto" style={{ background: "#0B1524", border: `1px solid ${C.inkLine}`, width: "100%", maxWidth: 420, aspectRatio: "1 / 1" }}>
           {!capturedBlob ? (
             cameraError ? (
               <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6">
@@ -147,21 +147,31 @@ export default function PhotoCapture({ reg, allowSkip, onBack, onNext }) {
 // which makes the guide clearly visible regardless of what's behind it
 // (unlike a thin dashed line, which disappeared against busy/light
 // backgrounds). Bright yellow with a dark outline reads on any scene.
+// Best practice for any "guide overlay on a camera preview" UI: the
+// SVG's viewBox aspect ratio must exactly match the container's real
+// aspect ratio, or the guide has to be stretched/cropped to fit and
+// ends up misaligned — which was the actual bug here, not size. Since
+// the preview container above is now a true CSS square (aspectRatio:
+// "1/1"), this viewBox is square too (300x300), so every coordinate
+// maps 1:1 onto the visible preview with zero distortion — and that
+// square also matches exactly what captureNormalizedPhoto() crops out
+// of the camera feed, so the guide shows the real capture area, not
+// an approximation of it.
 function FramingGuide() {
   return (
-    <svg width="100%" height="100%" viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+    <svg width="100%" height="100%" viewBox="0 0 300 300" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
       <defs>
         <mask id="guide-cutout">
-          <rect x="0" y="0" width="300" height="400" fill="white" />
-          <ellipse cx="150" cy="150" rx="88" ry="108" fill="black" />
-          <path d="M 40 400 C 40 300 90 255 150 255 C 210 255 260 300 260 400 Z" fill="black" />
+          <rect x="0" y="0" width="300" height="300" fill="white" />
+          <ellipse cx="150" cy="115" rx="72" ry="85" fill="black" />
+          <path d="M 25 300 C 25 218 88 197 150 197 C 212 197 275 218 275 300 Z" fill="black" />
         </mask>
       </defs>
-      <rect x="0" y="0" width="300" height="400" fill="rgba(0,0,0,0.55)" mask="url(#guide-cutout)" />
-      <ellipse cx="150" cy="150" rx="88" ry="108" fill="none" stroke="#0A0F1A" strokeWidth="5" opacity="0.6" />
-      <path d="M 40 400 C 40 300 90 255 150 255 C 210 255 260 300 260 400" fill="none" stroke="#0A0F1A" strokeWidth="5" opacity="0.6" />
-      <ellipse cx="150" cy="150" rx="88" ry="108" fill="none" stroke="#FFD24C" strokeWidth="2.5" strokeDasharray="8 6" />
-      <path d="M 40 400 C 40 300 90 255 150 255 C 210 255 260 300 260 400" fill="none" stroke="#FFD24C" strokeWidth="2.5" strokeDasharray="8 6" />
+      <rect x="0" y="0" width="300" height="300" fill="rgba(0,0,0,0.55)" mask="url(#guide-cutout)" />
+      <ellipse cx="150" cy="115" rx="72" ry="85" fill="none" stroke="#0A0F1A" strokeWidth="5" opacity="0.6" />
+      <path d="M 25 300 C 25 218 88 197 150 197 C 212 197 275 218 275 300" fill="none" stroke="#0A0F1A" strokeWidth="5" opacity="0.6" />
+      <ellipse cx="150" cy="115" rx="72" ry="85" fill="none" stroke="#FFD24C" strokeWidth="2.5" strokeDasharray="8 6" />
+      <path d="M 25 300 C 25 218 88 197 150 197 C 212 197 275 218 275 300" fill="none" stroke="#FFD24C" strokeWidth="2.5" strokeDasharray="8 6" />
     </svg>
   );
 }

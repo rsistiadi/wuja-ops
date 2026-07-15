@@ -12,6 +12,7 @@ export default function EventScanMode() {
   const [namedIds, setNamedIds] = useState(new Set());
   const [stats, setStats] = useState({ scanned: 0, allowed: 0, denied: 0 });
   const [sheet, setSheet] = useState(null); // 'scan' | 'manual' | null
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     supabase.from("checkpoints").select("*").in("type", ["event", "entry"]).then(({ data }) => {
@@ -24,8 +25,16 @@ export default function EventScanMode() {
 
   const loadNamedList = useCallback(async () => {
     if (!cp) return;
-    if (cp.access_rule !== "named" && cp.access_rule !== "both") { setNamedIds(new Set()); return; }
-    const { data } = await supabase.from("checkpoint_named_list").select("registration_id").eq("checkpoint_id", cp.id);
+    if (cp.access_rule !== "named" && cp.access_rule !== "both") { setNamedIds(new Set()); setLoadError(""); return; }
+    const { data, error } = await supabase.from("checkpoint_named_list").select("registration_id").eq("checkpoint_id", cp.id);
+    if (error) {
+      // This list gates who's allowed in under this checkpoint's rule —
+      // failing silently here would make the app wrongly deny every
+      // named guest with no visible warning. Must be loud about it.
+      setLoadError(`Couldn't load the named guest list — DO NOT rely on allow/deny results until this is fixed: ${error.message}`);
+      return;
+    }
+    setLoadError("");
     setNamedIds(new Set((data || []).map((r) => r.registration_id)));
   }, [cp]);
 
@@ -75,6 +84,11 @@ export default function EventScanMode() {
       <div className="px-5 pb-3" style={{ background: C.ink }}>
         <Dropdown value={cpId} onChange={setCpId} options={checkpoints.map((c) => ({ value: c.id, label: c.name }))} />
       </div>
+      {loadError && (
+        <div className="mx-5 mb-3 rounded-lg px-3 py-2.5" style={{ background: `${C.alert}1f`, border: `1px solid ${C.alert}` }}>
+          <span style={{ color: C.alert, fontSize: 11.5, fontWeight: 600 }}>{loadError}</span>
+        </div>
+      )}
       <div className="flex-1 flex flex-col items-center justify-center gap-2" style={{ background: C.inkSoft }}>
         <div style={{ width: 96, height: 96, borderRadius: 999, border: `1.5px dashed ${C.inkLine}`, display: "flex", alignItems: "center", justifyContent: "center" }}><ScanLine size={40} color={C.ink40} /></div>
         <div style={{ color: C.ink40, fontSize: 12.5 }}>Ready to scan next badge</div>

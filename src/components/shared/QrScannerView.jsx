@@ -49,16 +49,18 @@ export default function QrScannerView({ onResult, onCancel, title = "Scan badge 
         ) : (
           <>
             <video ref={videoRef} playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            <svg width="100%" height="100%" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid slice" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-              <defs>
-                <mask id="qr-cutout">
-                  <rect x="0" y="0" width="300" height="300" fill="white" />
-                  <rect x="60" y="60" width="180" height="180" rx="16" fill="black" />
-                </mask>
-              </defs>
-              <rect x="0" y="0" width="300" height="300" fill="rgba(0,0,0,0.55)" mask="url(#qr-cutout)" />
-              <rect x="60" y="60" width="180" height="180" rx="16" fill="none" stroke="#FFD24C" strokeWidth="3" />
-            </svg>
+            {/* A CSS square (not an SVG viewBox stretched to fit a
+                non-square container — that mismatch was the actual bug
+                in the old version of this guide). box-shadow spread to
+                9999px darkens everything outside the square, clipped by
+                the parent's overflow:hidden — this technique is always
+                a true square regardless of screen size or aspect ratio,
+                so there's no coordinate math that can go wrong. */}
+            <div style={{
+              position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+              width: "min(70vw, 60vh, 280px)", aspectRatio: "1 / 1", borderRadius: 16,
+              border: "3px solid #FFD24C", boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)", pointerEvents: "none",
+            }} />
             <div style={{ position: "absolute", bottom: 20, left: 0, right: 0, textAlign: "center", color: C.parchment, fontSize: 12 }}>Hold the badge QR inside the frame</div>
           </>
         )}

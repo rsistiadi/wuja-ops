@@ -11,6 +11,7 @@ export default function BusScanSheet({ bus, buses, roster, legId, onClose, onCha
   const [stage, setStage] = useState("scanning"); // scanning | pick | searchAll | action | result
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+  const [searchError, setSearchError] = useState("");
   const [person, setPerson] = useState(null);
   const [reason, setReason] = useState("");
   const [resultView, setResultView] = useState(null);
@@ -20,8 +21,10 @@ export default function BusScanSheet({ bus, buses, roster, legId, onClose, onCha
 
   const runSearch = async (q) => {
     setQuery(q);
-    if (q.trim().length < 2) { setSearchResults([]); return; }
-    const { data } = await supabase.from("registrations").select("id, full_name, category, person_role, assigned_bus_id").ilike("full_name", `%${q.trim()}%`).limit(20);
+    if (q.trim().length < 2) { setSearchResults([]); setSearchError(""); return; }
+    const { data, error } = await supabase.from("registrations").select("id, full_name, category, person_role, assigned_bus_id").ilike("full_name", `%${q.trim()}%`).limit(20);
+    if (error) { setSearchError(error.message); return; }
+    setSearchError("");
     setSearchResults(data || []);
   };
 
@@ -142,6 +145,7 @@ export default function BusScanSheet({ bus, buses, roster, legId, onClose, onCha
               <input autoFocus value={query} onChange={(e) => runSearch(e.target.value)} placeholder="Search all registrants…"
                 className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 13, padding: "9px 4px", border: "none" }} />
             </div>
+            {searchError && <div style={{ color: C.alert, fontSize: 11.5, marginBottom: 8 }}>{searchError}</div>}
             <div className="overflow-y-auto flex flex-col gap-1.5">
               {searchResults.map((p) => (
                 <button key={p.id} onClick={() => pickFromManual(p)} className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg" style={{ background: C.inkSoft, border: "none", cursor: "pointer" }}>
