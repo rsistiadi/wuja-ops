@@ -75,6 +75,13 @@ export default function AdminCrew({ callCrewAdmin }) {
     try { await callCrewAdmin("reactivate", { crew_id: c.id }); refetch(); }
     catch (e) { setError(e.message); } finally { setBusy(false); }
   };
+  const changeRole = async (c, newRole) => {
+    setRoleDraft((prev) => ({ ...prev, [c.id]: newRole })); // optimistic
+    setBusy(true); setError("");
+    try { await callCrewAdmin("change_role", { crew_id: c.id, approved_role: newRole }); refetch(); }
+    catch (e) { setError(e.message); setRoleDraft((prev) => ({ ...prev, [c.id]: c.approved_role })); }
+    finally { setBusy(false); }
+  };
   const confirmResetPin = async () => {
     setBusy(true); setError("");
     try {
@@ -92,100 +99,101 @@ export default function AdminCrew({ callCrewAdmin }) {
 
   return (
     <div className="flex-1 overflow-y-auto px-5 pt-4 pb-6 flex flex-col gap-6" style={{ background: C.inkSoft, position: "relative" }}>
-      {error && <div style={{ color: C.alert, fontSize: 12.5 }}>{error}</div>}
+      {error && <div style={{ color: C.alert, fontSize: 13.5 }}>{error}</div>}
 
       <div>
         <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
-          <span style={{ color: C.ink60, fontSize: 11, fontWeight: 700 }}>PENDING APPROVAL · {pending.length}</span>
-          <button onClick={refetch} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, color: C.gold, fontSize: 10.5, fontWeight: 700 }}><RefreshCw size={11} /> Refresh</button>
+          <span style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700 }}>PENDING APPROVAL · {pending.length}</span>
+          <button onClick={refetch} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, color: C.gold, fontSize: 12.5, fontWeight: 700 }}><RefreshCw size={11} /> Refresh</button>
         </div>
-        {pending.length === 0 && <div style={{ color: C.ink40, fontSize: 12 }}>None.</div>}
+        {pending.length === 0 && <div style={{ color: C.ink40, fontSize: 13.5 }}>None.</div>}
         {pending.map((c) => (
           <div key={c.id} className="rounded-xl p-3.5 mb-2" style={{ background: C.ink, border: `1px solid ${C.gold}66` }}>
             <button onClick={() => setSelected(c)} className="flex items-center gap-3 w-full text-left" style={{ background: "none", border: "none", cursor: "pointer" }}>
               <CrewAvatar c={c} />
-              <div><div style={{ color: C.parchment, fontSize: 13.5, fontWeight: 700 }}>{c.full_name}</div><div style={{ color: C.ink60, fontSize: 11.5, marginTop: 2 }}>Requested: {ROLE_META[c.requested_role]?.label}</div></div>
+              <div><div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 700 }}>{c.full_name}</div><div style={{ color: C.ink60, fontSize: 12.5, marginTop: 2 }}>Requested: {ROLE_META[c.requested_role]?.label}</div></div>
             </button>
             <div style={{ marginTop: 10 }} />
             <Dropdown value={roleDraft[c.id] || c.requested_role} onChange={(v) => setRoleDraft((prev) => ({ ...prev, [c.id]: v }))} options={ROLE_OPTIONS} />
             <div className="flex gap-2 mt-2.5">
-              <button onClick={() => approve(c)} disabled={busy} className="flex-1 rounded-lg" style={{ background: C.ok, color: C.ink, fontSize: 12, fontWeight: 700, padding: "8px 0", border: "none", cursor: "pointer" }}>Approve</button>
-              <button onClick={() => reject(c)} disabled={busy} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.alert, fontSize: 12, fontWeight: 600, padding: "8px 0", cursor: "pointer" }}>Reject</button>
+              <button onClick={() => approve(c)} disabled={busy} className="flex-1 rounded-lg" style={{ background: C.ok, color: C.ink, fontSize: 13.5, fontWeight: 700, padding: "8px 0", border: "none", cursor: "pointer" }}>Approve</button>
+              <button onClick={() => reject(c)} disabled={busy} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.alert, fontSize: 13.5, fontWeight: 600, padding: "8px 0", cursor: "pointer" }}>Reject</button>
             </div>
           </div>
         ))}
       </div>
 
       <div>
-        <div style={{ color: C.ink60, fontSize: 11, fontWeight: 700, marginBottom: 8 }}>ACTIVE CREW · {active.length}</div>
+        <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>ACTIVE CREW · {active.length}</div>
         {active.map((c) => (
           <div key={c.id} className="rounded-xl p-3.5 mb-2" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
             <div className="flex items-center justify-between">
               <button onClick={() => setSelected(c)} className="flex items-center gap-3 flex-1 text-left" style={{ background: "none", border: "none", cursor: "pointer" }}>
                 <CrewAvatar c={c} size={38} />
-                <div><div style={{ color: C.parchment, fontSize: 13.5, fontWeight: 700 }}>{c.full_name}</div><div style={{ color: C.ok, fontSize: 11, marginTop: 2 }}>{ROLE_META[c.approved_role]?.label}</div></div>
+                <div><div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 700 }}>{c.full_name}</div><div style={{ color: C.ok, fontSize: 12.5, marginTop: 2 }}>{ROLE_META[c.approved_role]?.label}</div></div>
               </button>
-              <span className="rounded-full" style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", background: `${C.ok}22`, color: C.ok, flexShrink: 0 }}>ACTIVE</span>
+              <span className="rounded-full" style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", background: `${C.ok}22`, color: C.ok, flexShrink: 0 }}>ACTIVE</span>
             </div>
-            {resetNotice[c.id] && <div style={{ color: C.gold, fontSize: 11.5, marginTop: 8 }}>New PIN: <span style={{ fontFamily: "JetBrains Mono, monospace", fontWeight: 700 }}>{resetNotice[c.id]}</span> — share with them.</div>}
+            {resetNotice[c.id] && <div style={{ color: C.gold, fontSize: 12.5, marginTop: 8 }}>New PIN: <span style={{ fontFamily: "JetBrains Mono, monospace", fontWeight: 700 }}>{resetNotice[c.id]}</span> — share with them.</div>}
+            <div className="mt-2.5"><Dropdown value={roleDraft[c.id] ?? c.approved_role} onChange={(v) => changeRole(c, v)} options={ROLE_OPTIONS} /></div>
             <div className="flex gap-2 mt-2.5">
-              <button onClick={() => setConfirmAction({ type: "reset", member: c })} disabled={busy} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 11.5, fontWeight: 600, padding: "7px 0", cursor: "pointer" }}>Reset PIN</button>
-              <button onClick={() => setConfirmAction({ type: "deactivate", member: c })} disabled={busy} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.alert}66`, color: C.alert, fontSize: 11.5, fontWeight: 600, padding: "7px 0", cursor: "pointer" }}>Deactivate</button>
+              <button onClick={() => setConfirmAction({ type: "reset", member: c })} disabled={busy} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 12.5, fontWeight: 600, padding: "7px 0", cursor: "pointer" }}>Reset PIN</button>
+              <button onClick={() => setConfirmAction({ type: "deactivate", member: c })} disabled={busy} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.alert}66`, color: C.alert, fontSize: 12.5, fontWeight: 600, padding: "7px 0", cursor: "pointer" }}>Deactivate</button>
             </div>
           </div>
         ))}
       </div>
 
       <div>
-        <div style={{ color: C.ink60, fontSize: 11, fontWeight: 700, marginBottom: 8 }}>DEACTIVATED · {deactivated.length}</div>
-        {deactivated.length === 0 && <div style={{ color: C.ink40, fontSize: 12 }}>None.</div>}
+        <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>DEACTIVATED · {deactivated.length}</div>
+        {deactivated.length === 0 && <div style={{ color: C.ink40, fontSize: 13.5 }}>None.</div>}
         {deactivated.map((c) => (
           <div key={c.id} className="rounded-xl p-3.5 mb-2 flex items-center justify-between" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
             <button onClick={() => setSelected(c)} className="flex items-center gap-3 flex-1 text-left" style={{ background: "none", border: "none", cursor: "pointer" }}>
               <CrewAvatar c={c} size={34} />
-              <div style={{ color: C.ink60, fontSize: 13, fontWeight: 600 }}>{c.full_name}</div>
+              <div style={{ color: C.ink60, fontSize: 14.5, fontWeight: 600 }}>{c.full_name}</div>
             </button>
-            <button onClick={() => reactivate(c)} disabled={busy} style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}`, color: C.gold, fontSize: 11, fontWeight: 700, padding: "6px 10px", borderRadius: 8, cursor: "pointer" }}>Reactivate</button>
+            <button onClick={() => reactivate(c)} disabled={busy} style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}`, color: C.gold, fontSize: 12.5, fontWeight: 700, padding: "6px 10px", borderRadius: 8, cursor: "pointer" }}>Reactivate</button>
           </div>
         ))}
       </div>
 
       {confirmAction && (
-        <div className="absolute inset-0 flex items-end" style={{ background: "rgba(10,15,26,0.82)" }}>
+        <div className="flex items-end" style={{ position: "fixed", inset: 0, zIndex: 30, background: "rgba(10,15,26,0.82)" }}>
           <div className="w-full rounded-t-2xl p-5" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
-            <div className="flex items-center gap-2 mb-2"><AlertTriangle size={16} color={confirmAction.type === "deactivate" ? C.alert : C.gold} /><span style={{ color: C.parchment, fontSize: 13.5, fontWeight: 700 }}>{confirmAction.type === "deactivate" ? "Deactivate crew member?" : "Reset PIN?"}</span></div>
-            <div style={{ color: C.ink60, fontSize: 12.5, marginBottom: 16 }}>
+            <div className="flex items-center gap-2 mb-2"><AlertTriangle size={16} color={confirmAction.type === "deactivate" ? C.alert : C.gold} /><span style={{ color: C.parchment, fontSize: 14.5, fontWeight: 700 }}>{confirmAction.type === "deactivate" ? "Deactivate crew member?" : "Reset PIN?"}</span></div>
+            <div style={{ color: C.ink60, fontSize: 13.5, marginBottom: 16 }}>
               {confirmAction.type === "deactivate"
                 ? `${confirmAction.member.full_name} will immediately lose login access.`
                 : `${confirmAction.member.full_name}'s current PIN stops working immediately. A new PIN is generated — you'll need to share it with them yourself.`}
             </div>
             <div className="flex gap-2">
-              <button onClick={confirmAction.type === "deactivate" ? confirmDeactivate : confirmResetPin} disabled={busy} className="flex-1 rounded-lg" style={{ background: confirmAction.type === "deactivate" ? C.alert : C.gold, color: confirmAction.type === "deactivate" ? C.parchment : C.ink, fontSize: 13, fontWeight: 700, padding: "10px 0", border: "none", cursor: "pointer" }}>Confirm</button>
-              <button onClick={() => setConfirmAction(null)} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.ink60, fontSize: 13, fontWeight: 600, padding: "10px 0", cursor: "pointer" }}>Cancel</button>
+              <button onClick={confirmAction.type === "deactivate" ? confirmDeactivate : confirmResetPin} disabled={busy} className="flex-1 rounded-lg" style={{ background: confirmAction.type === "deactivate" ? C.alert : C.gold, color: confirmAction.type === "deactivate" ? C.parchment : C.ink, fontSize: 14.5, fontWeight: 700, padding: "10px 0", border: "none", cursor: "pointer" }}>Confirm</button>
+              <button onClick={() => setConfirmAction(null)} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.ink60, fontSize: 14.5, fontWeight: 600, padding: "10px 0", cursor: "pointer" }}>Cancel</button>
             </div>
           </div>
         </div>
       )}
 
       {selected && (
-        <div className="absolute inset-0 flex items-end" style={{ background: "rgba(10,15,26,0.82)" }}>
+        <div className="flex items-end" style={{ position: "fixed", inset: 0, zIndex: 30, background: "rgba(10,15,26,0.82)" }}>
           <div className="w-full rounded-t-2xl p-5" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
             <div className="flex items-center justify-between mb-4">
-              <span style={{ color: C.parchment, fontSize: 14, fontWeight: 700 }}>Crew Profile</span>
+              <span style={{ color: C.parchment, fontSize: 15.5, fontWeight: 700 }}>Crew Profile</span>
               <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.ink40} /></button>
             </div>
             <div className="flex flex-col items-center">
               <CrewAvatar c={selected} size={84} />
-              <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 18, fontWeight: 600, marginTop: 10 }}>{selected.full_name}</div>
-              <span className="rounded-full mt-2" style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 10px", background: `${C.gold}22`, color: C.gold }}>{ROLE_META[selected.approved_role || selected.requested_role]?.label}</span>
+              <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 20, fontWeight: 600, marginTop: 10 }}>{selected.full_name}</div>
+              <span className="rounded-full mt-2" style={{ fontSize: 12.5, fontWeight: 700, padding: "3px 10px", background: `${C.gold}22`, color: C.gold }}>{ROLE_META[selected.approved_role || selected.requested_role]?.label}</span>
               {regById[selected.registration_id] && (
                 <div className="w-full mt-4 pt-4 flex flex-col gap-2" style={{ borderTop: `1px dashed ${C.inkLine}` }}>
-                  <div className="flex justify-between"><span style={{ color: C.ink40, fontSize: 11 }}>Badge category</span><PersonTag reg={regById[selected.registration_id]} /></div>
-                  <div className="flex justify-between"><span style={{ color: C.ink40, fontSize: 11 }}>Badge status</span><StatusPill reg={regById[selected.registration_id]} /></div>
-                  <div className="flex justify-between"><span style={{ color: C.ink40, fontSize: 11 }}>Badge no.</span><span style={{ fontFamily: "JetBrains Mono, monospace", color: C.parchment, fontSize: 11.5 }}>{regById[selected.registration_id].badge_number || "— not issued —"}</span></div>
+                  <div className="flex justify-between"><span style={{ color: C.ink40, fontSize: 12.5 }}>Badge category</span><PersonTag reg={regById[selected.registration_id]} /></div>
+                  <div className="flex justify-between"><span style={{ color: C.ink40, fontSize: 12.5 }}>Badge status</span><StatusPill reg={regById[selected.registration_id]} /></div>
+                  <div className="flex justify-between"><span style={{ color: C.ink40, fontSize: 12.5 }}>Badge no.</span><span style={{ fontFamily: "JetBrains Mono, monospace", color: C.parchment, fontSize: 12.5 }}>{regById[selected.registration_id].badge_number || "— not issued —"}</span></div>
                 </div>
               )}
-              {!regById[selected.registration_id] && <div style={{ color: C.ink40, fontSize: 11.5, marginTop: 12, textAlign: "center" }}>No linked badge record — this account predates the unified badge system.</div>}
+              {!regById[selected.registration_id] && <div style={{ color: C.ink40, fontSize: 12.5, marginTop: 12, textAlign: "center" }}>No linked badge record — this account predates the unified badge system.</div>}
             </div>
           </div>
         </div>

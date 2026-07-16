@@ -37,7 +37,7 @@ export default function BusOpsMode() {
   const leg = legs.find((l) => l.id === legId);
 
   const refetch = useCallback(async () => {
-    if (!busId || !legId) return;
+    if (!busId || !legId) { setLoading(false); return; }
     setLoading(true);
     const [rosterRes, statusRes] = await Promise.all([
       supabase.from("registrations").select("id, full_name, category, assigned_bus_id, medical_note").eq("assigned_bus_id", busId),
@@ -78,7 +78,7 @@ export default function BusOpsMode() {
 
   if (!bus || !leg) {
     return (
-      <div className="flex-1 flex items-center justify-center" style={{ background: C.inkSoft, color: C.ink40, fontSize: 13 }}>
+      <div className="flex-1 flex items-center justify-center" style={{ background: C.inkSoft, color: C.ink40, fontSize: 14.5 }}>
         {loading ? "Loading buses & trips…" : "No buses or trips configured yet — set these up in Admin first."}
       </div>
     );
@@ -93,18 +93,18 @@ export default function BusOpsMode() {
         <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-5" style={{ background: C.inkSoft }}>
           <div className="grid grid-cols-3 gap-2">
             {[{ l: "Boarded", v: boardedHere + addedRiders.length, c: C.ok }, { l: "Not riding", v: notRiding, c: C.ink60 }, { l: "Unaccounted", v: unaccountedList.length, c: unaccountedList.length ? C.alert : C.ok }].map((s) => (
-              <div key={s.l} className="rounded-lg text-center py-2.5" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}><div style={{ fontFamily: "JetBrains Mono, monospace", color: s.c, fontSize: 18, fontWeight: 700 }}>{s.v}</div><div style={{ color: C.ink40, fontSize: 9, fontWeight: 600 }}>{s.l.toUpperCase()}</div></div>
+              <div key={s.l} className="rounded-lg text-center py-2.5" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}><div style={{ fontFamily: "JetBrains Mono, monospace", color: s.c, fontSize: 20, fontWeight: 700 }}>{s.v}</div><div style={{ color: C.ink40, fontSize: 11, fontWeight: 600 }}>{s.l.toUpperCase()}</div></div>
             ))}
           </div>
           <div>
-            <div style={{ color: C.ink60, fontSize: 11.5, fontWeight: 700, marginBottom: 8 }}>NOT RIDING — WITH REASON</div>
-            {notRidingList.length === 0 && <div style={{ color: C.ink40, fontSize: 12.5 }}>None.</div>}
-            {notRidingList.map((p) => (<div key={p.id} className="rounded-xl px-4 py-3 mb-2" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}><div style={{ color: C.parchment, fontSize: 13, fontWeight: 600 }}>{p.full_name}</div><div style={{ color: C.ink40, fontSize: 11.5, fontStyle: "italic", marginTop: 2 }}>{statusFor(p.id)?.reason ? `"${statusFor(p.id).reason}"` : "No reason given"}</div></div>))}
+            <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>NOT RIDING — WITH REASON</div>
+            {notRidingList.length === 0 && <div style={{ color: C.ink40, fontSize: 13.5 }}>None.</div>}
+            {notRidingList.map((p) => (<div key={p.id} className="rounded-xl px-4 py-3 mb-2" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}><div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>{p.full_name}</div><div style={{ color: C.ink40, fontSize: 12.5, fontStyle: "italic", marginTop: 2 }}>{statusFor(p.id)?.reason ? `"${statusFor(p.id).reason}"` : "No reason given"}</div></div>))}
           </div>
           <div>
-            <div style={{ color: C.alert, fontSize: 11.5, fontWeight: 700, marginBottom: 8 }}>UNACCOUNTED — NEEDS FOLLOW-UP</div>
-            {unaccountedList.length === 0 && <div style={{ color: C.ok, fontSize: 12.5 }}>Everyone is accounted for.</div>}
-            {unaccountedList.map((p) => (<div key={p.id} className="rounded-xl px-4 py-3 mb-2" style={{ background: C.ink, border: `1px solid ${C.alert}66` }}><div style={{ color: C.parchment, fontSize: 13, fontWeight: 600 }}>{p.full_name}</div><div style={{ color: C.alert, fontSize: 11.5, marginTop: 2 }}>No status recorded</div></div>))}
+            <div style={{ color: C.alert, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>UNACCOUNTED — NEEDS FOLLOW-UP</div>
+            {unaccountedList.length === 0 && <div style={{ color: C.ok, fontSize: 13.5 }}>Everyone is accounted for.</div>}
+            {unaccountedList.map((p) => (<div key={p.id} className="rounded-xl px-4 py-3 mb-2" style={{ background: C.ink, border: `1px solid ${C.alert}66` }}><div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>{p.full_name}</div><div style={{ color: C.alert, fontSize: 12.5, marginTop: 2 }}>No status recorded</div></div>))}
           </div>
         </div>
         <div className="px-5 pb-7 pt-3" style={{ background: C.inkSoft }}><PrimaryButton icon={Check} onClick={() => setShowSummary(false)}>Back to roster</PrimaryButton></div>
@@ -125,17 +125,17 @@ export default function BusOpsMode() {
       <div className="px-5 pb-3" style={{ background: C.ink }}>
         <div className="grid grid-cols-4 gap-1.5">
           {[{ label: "Boarded", val: boardedHere, color: C.ok }, { label: "Not riding", val: notRiding, color: C.ink60 }, { label: "On another bus", val: elsewhere, color: C.guest }, { label: "Unaccounted", val: unaccounted, color: unaccounted > 0 ? C.alert : C.ok }].map((s) => (
-            <div key={s.label} className="rounded-lg text-center py-2" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}` }}><div style={{ fontFamily: "JetBrains Mono, monospace", color: s.color, fontSize: 16, fontWeight: 700 }}>{s.val}</div><div style={{ color: C.ink40, fontSize: 7.5, fontWeight: 600, marginTop: 1, lineHeight: 1.2 }}>{s.label.toUpperCase()}</div></div>
+            <div key={s.label} className="rounded-lg text-center py-2" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}` }}><div style={{ fontFamily: "JetBrains Mono, monospace", color: s.color, fontSize: 16.5, fontWeight: 700 }}>{s.val}</div><div style={{ color: C.ink40, fontSize: 11, fontWeight: 600, marginTop: 1, lineHeight: 1.2 }}>{s.label.toUpperCase()}</div></div>
           ))}
         </div>
       </div>
 
       <div className="px-5 pb-3 flex flex-col gap-2" style={{ background: C.ink }}>
-        <button onClick={() => setSheet("scan")} className="w-full flex items-center justify-center gap-2.5 rounded-xl" style={{ background: C.gold, color: C.ink, fontWeight: 700, fontSize: 16, padding: "16px 0", border: "none", cursor: "pointer" }}><ScanLine size={20} /> SCAN BADGE</button>
+        <button onClick={() => setSheet("scan")} className="w-full flex items-center justify-center gap-2.5 rounded-xl" style={{ background: C.gold, color: C.ink, fontWeight: 700, fontSize: 16.5, padding: "16px 0", border: "none", cursor: "pointer" }}><ScanLine size={20} /> SCAN BADGE</button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-3 flex flex-col gap-2" style={{ background: C.inkSoft }}>
-        <div style={{ color: C.ink60, fontSize: 10.5, fontWeight: 700 }}>{bus.name.toUpperCase()} ROSTER · {roster.length}</div>
+        <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700 }}>{bus.name.toUpperCase()} ROSTER · {roster.length}</div>
         {roster.map((p) => {
           const rec = statusFor(p.id);
           let pill = { text: "UNACCOUNTED", color: C.alert };
@@ -146,32 +146,32 @@ export default function BusOpsMode() {
           return (
             <div key={p.id} className="rounded-xl px-4 py-3" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
               <div className="flex items-center justify-between">
-                <div><div style={{ color: C.parchment, fontSize: 13.5, fontWeight: 600 }}>{p.full_name}</div><div className="flex items-center gap-2 mt-1"><PersonTag reg={p} /></div></div>
-                <span className="rounded-full" style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", background: `${pill.color}22`, color: pill.color }}>{pill.text}</span>
+                <div><div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>{p.full_name}</div><div className="flex items-center gap-2 mt-1"><PersonTag reg={p} /></div></div>
+                <span className="rounded-full" style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", background: `${pill.color}22`, color: pill.color }}>{pill.text}</span>
               </div>
-              {rec?.reason && <div style={{ color: C.ink40, fontSize: 11, fontStyle: "italic", marginTop: 6 }}>"{rec.reason}"</div>}
+              {rec?.reason && <div style={{ color: C.ink40, fontSize: 12.5, fontStyle: "italic", marginTop: 6 }}>"{rec.reason}"</div>}
 
               {reasonFor === p.id ? (
                 <div className="mt-2.5 flex flex-col gap-2">
-                  <input value={reasonDraft} onChange={(e) => setReasonDraft(e.target.value)} placeholder="Reason (optional)" className="w-full rounded-lg outline-none" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 12.5, padding: "8px 10px" }} />
+                  <input value={reasonDraft} onChange={(e) => setReasonDraft(e.target.value)} placeholder="Reason (optional)" className="w-full rounded-lg outline-none" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 13.5, padding: "8px 10px" }} />
                   <div className="flex gap-2">
-                    <button onClick={async () => { await upsertStatus(p.id, "not_riding", reasonDraft); setReasonFor(null); setReasonDraft(""); }} className="flex-1 rounded-lg" style={{ background: C.gold, color: C.ink, fontSize: 12, fontWeight: 700, padding: "7px 0", border: "none", cursor: "pointer" }}>Confirm</button>
-                    <button onClick={() => setReasonFor(null)} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.ink60, fontSize: 12, fontWeight: 600, padding: "7px 0", cursor: "pointer" }}>Cancel</button>
+                    <button onClick={async () => { await upsertStatus(p.id, "not_riding", reasonDraft); setReasonFor(null); setReasonDraft(""); }} className="flex-1 rounded-lg" style={{ background: C.gold, color: C.ink, fontSize: 13.5, fontWeight: 700, padding: "7px 0", border: "none", cursor: "pointer" }}>Confirm</button>
+                    <button onClick={() => setReasonFor(null)} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.ink60, fontSize: 13.5, fontWeight: 600, padding: "7px 0", cursor: "pointer" }}>Cancel</button>
                   </div>
                 </div>
               ) : manualFor === p.id ? (
                 <div className="mt-2.5 flex flex-col gap-2">
-                  <input value={manualReason} onChange={(e) => setManualReason(e.target.value)} placeholder="Reason (required — e.g. badge lost)" className="w-full rounded-lg outline-none" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 12.5, padding: "8px 10px" }} />
+                  <input value={manualReason} onChange={(e) => setManualReason(e.target.value)} placeholder="Reason (required — e.g. badge lost)" className="w-full rounded-lg outline-none" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 13.5, padding: "8px 10px" }} />
                   <div className="flex gap-2">
-                    <button onClick={async () => { if (!manualReason.trim()) return; await upsertStatus(p.id, "boarded", manualReason.trim(), "manual"); setManualFor(null); setManualReason(""); }} disabled={!manualReason.trim()} className="flex-1 rounded-lg" style={{ background: manualReason.trim() ? C.gold : C.inkLine, color: C.ink, fontSize: 12, fontWeight: 700, padding: "7px 0", border: "none", cursor: "pointer" }}>Confirm boarded</button>
-                    <button onClick={() => { setManualFor(null); setManualReason(""); }} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.ink60, fontSize: 12, fontWeight: 600, padding: "7px 0", cursor: "pointer" }}>Cancel</button>
+                    <button onClick={async () => { if (!manualReason.trim()) return; await upsertStatus(p.id, "boarded", manualReason.trim(), "manual"); setManualFor(null); setManualReason(""); }} disabled={!manualReason.trim()} className="flex-1 rounded-lg" style={{ background: manualReason.trim() ? C.gold : C.inkLine, color: C.ink, fontSize: 13.5, fontWeight: 700, padding: "7px 0", border: "none", cursor: "pointer" }}>Confirm boarded</button>
+                    <button onClick={() => { setManualFor(null); setManualReason(""); }} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.ink60, fontSize: 13.5, fontWeight: 600, padding: "7px 0", cursor: "pointer" }}>Cancel</button>
                   </div>
                 </div>
               ) : (
                 (!rec || rec.status === "not_riding") && (
                   <div className="mt-2.5 flex gap-2">
-                    <button onClick={() => { setManualFor(p.id); setManualReason(""); }} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 11.5, fontWeight: 600, padding: "7px 0", cursor: "pointer" }}>Badge unavailable</button>
-                    <button onClick={() => { setReasonFor(p.id); setReasonDraft(rec?.reason || ""); }} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.ink60, fontSize: 11.5, fontWeight: 600, padding: "7px 0", cursor: "pointer" }}>Not riding</button>
+                    <button onClick={() => { setManualFor(p.id); setManualReason(""); }} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 12.5, fontWeight: 600, padding: "7px 0", cursor: "pointer" }}>Badge unavailable</button>
+                    <button onClick={() => { setReasonFor(p.id); setReasonDraft(rec?.reason || ""); }} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.ink60, fontSize: 12.5, fontWeight: 600, padding: "7px 0", cursor: "pointer" }}>Not riding</button>
                   </div>
                 )
               )}
@@ -181,16 +181,16 @@ export default function BusOpsMode() {
 
         {addedRiders.length > 0 && (
           <>
-            <div style={{ color: C.guest, fontSize: 10.5, fontWeight: 700, marginTop: 8 }}>ON {bus.name.toUpperCase()}, NOT ON ROSTER</div>
+            <div style={{ color: C.guest, fontSize: 12.5, fontWeight: 700, marginTop: 8 }}>ON {bus.name.toUpperCase()}, NOT ON ROSTER</div>
             {addedRiders.map((p) => {
               const rec = statusFor(p.id);
               return (
                 <div key={p.id} className="rounded-xl px-4 py-3" style={{ background: C.ink, border: `1px solid ${C.guest}55` }}>
                   <div className="flex items-center justify-between">
-                    <div><div style={{ color: C.parchment, fontSize: 13.5, fontWeight: 600 }}>{p.full_name}</div><div style={{ color: C.ink40, fontSize: 11, marginTop: 4 }}>Home: {buses.find((b) => b.id === p.assigned_bus_id)?.name || "Unassigned"}</div></div>
-                    <span className="rounded-full" style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", background: `${C.guest}22`, color: C.guest }}>ADDED</span>
+                    <div><div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>{p.full_name}</div><div style={{ color: C.ink40, fontSize: 12.5, marginTop: 4 }}>Home: {buses.find((b) => b.id === p.assigned_bus_id)?.name || "Unassigned"}</div></div>
+                    <span className="rounded-full" style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", background: `${C.guest}22`, color: C.guest }}>ADDED</span>
                   </div>
-                  {rec?.reason && <div style={{ color: C.ink40, fontSize: 11, fontStyle: "italic", marginTop: 6 }}>"{rec.reason}"</div>}
+                  {rec?.reason && <div style={{ color: C.ink40, fontSize: 12.5, fontStyle: "italic", marginTop: 6 }}>"{rec.reason}"</div>}
                 </div>
               );
             })}

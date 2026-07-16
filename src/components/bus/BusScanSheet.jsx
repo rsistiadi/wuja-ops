@@ -110,29 +110,29 @@ export default function BusScanSheet({ bus, buses, roster, legId, onClose, onCha
   }
 
   return (
-    <div className="absolute inset-0 flex items-end" style={{ background: "rgba(10,15,26,0.82)" }}>
+    <div className="flex items-end" style={{ position: "fixed", inset: 0, zIndex: 30, background: "rgba(10,15,26,0.82)" }}>
       <div className="w-full rounded-t-2xl p-5" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, maxHeight: "88%", display: "flex", flexDirection: "column" }}>
         <div className="flex items-center justify-between mb-3">
-          <span style={{ color: C.parchment, fontSize: 14, fontWeight: 700 }}>Badge unavailable — {bus.name}</span>
+          <span style={{ color: C.parchment, fontSize: 15.5, fontWeight: 700 }}>Badge unavailable — {bus.name}</span>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.ink40} /></button>
         </div>
 
         {(stage === "pick" || stage === "searchAll") && (
-          <button onClick={() => setStage("scanning")} className="flex items-center justify-center gap-1.5 mb-3 rounded-lg" style={{ color: C.gold, fontSize: 12, fontWeight: 700, padding: "9px 0", border: `1px dashed ${C.gold}66`, background: "none", cursor: "pointer" }}>
+          <button onClick={() => setStage("scanning")} className="flex items-center justify-center gap-1.5 mb-3 rounded-lg" style={{ color: C.gold, fontSize: 13.5, fontWeight: 700, padding: "9px 0", border: `1px dashed ${C.gold}66`, background: "none", cursor: "pointer" }}>
             <ScanLine size={13} /> Try scanning again
           </button>
         )}
 
         {stage === "pick" && (
           <div className="overflow-y-auto flex flex-col gap-1.5">
-            <div style={{ color: C.ink40, fontSize: 10.5, fontWeight: 700, marginBottom: 2 }}>{bus.name.toUpperCase()} ROSTER</div>
+            <div style={{ color: C.ink40, fontSize: 12.5, fontWeight: 700, marginBottom: 2 }}>{bus.name.toUpperCase()} ROSTER</div>
             {roster.map((p) => (
               <button key={p.id} onClick={() => pickFromManual(p)} disabled={busy} className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg" style={{ background: C.inkSoft, border: "none", cursor: "pointer" }}>
-                <span style={{ color: C.parchment, fontSize: 12.5 }}>{p.full_name}</span>
+                <span style={{ color: C.parchment, fontSize: 13.5 }}>{p.full_name}</span>
                 <PersonTag reg={p} />
               </button>
             ))}
-            <button onClick={() => setStage("searchAll")} className="flex items-center justify-center gap-1.5 mt-2 rounded-lg" style={{ color: C.gold, fontSize: 12, fontWeight: 700, padding: "9px 0", border: `1px dashed ${C.gold}66`, background: "none", cursor: "pointer" }}>
+            <button onClick={() => setStage("searchAll")} className="flex items-center justify-center gap-1.5 mt-2 rounded-lg" style={{ color: C.gold, fontSize: 13.5, fontWeight: 700, padding: "9px 0", border: `1px dashed ${C.gold}66`, background: "none", cursor: "pointer" }}>
               <Search size={13} /> Not here — search all registrants
             </button>
           </div>
@@ -143,14 +143,14 @@ export default function BusScanSheet({ bus, buses, roster, legId, onClose, onCha
             <div className="flex items-center gap-2 rounded-xl px-3 mb-3" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}` }}>
               <Search size={14} color={C.ink40} />
               <input autoFocus value={query} onChange={(e) => runSearch(e.target.value)} placeholder="Search all registrants…"
-                className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 13, padding: "9px 4px", border: "none" }} />
+                className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 14.5, padding: "9px 4px", border: "none" }} />
             </div>
-            {searchError && <div style={{ color: C.alert, fontSize: 11.5, marginBottom: 8 }}>{searchError}</div>}
+            {searchError && <div style={{ color: C.alert, fontSize: 12.5, marginBottom: 8 }}>{searchError}</div>}
             <div className="overflow-y-auto flex flex-col gap-1.5">
               {searchResults.map((p) => (
                 <button key={p.id} onClick={() => pickFromManual(p)} className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg" style={{ background: C.inkSoft, border: "none", cursor: "pointer" }}>
-                  <span style={{ color: C.parchment, fontSize: 12.5 }}>{p.full_name}</span>
-                  <span style={{ color: C.ink40, fontSize: 10.5 }}>{buses.find((b) => b.id === p.assigned_bus_id)?.name || "Unassigned"}</span>
+                  <span style={{ color: C.parchment, fontSize: 13.5 }}>{p.full_name}</span>
+                  <span style={{ color: C.ink40, fontSize: 12.5 }}>{buses.find((b) => b.id === p.assigned_bus_id)?.name || "Unassigned"}</span>
                 </button>
               ))}
             </div>
@@ -161,26 +161,26 @@ export default function BusScanSheet({ bus, buses, roster, legId, onClose, onCha
           <div className="flex flex-col gap-3">
             <div className="rounded-xl p-3.5 flex items-center gap-3" style={{ background: `${C.speaker}18`, border: `1px solid ${C.speaker}55` }}>
               <AlertTriangle size={18} color={C.speaker} style={{ flexShrink: 0 }} />
-              <div style={{ color: C.parchment, fontSize: 12.5 }}>{person.full_name} is assigned to {buses.find((b) => b.id === person.assigned_bus_id)?.name || "another bus"}, not {bus.name}.</div>
+              <div style={{ color: C.parchment, fontSize: 13.5 }}>{person.full_name} is assigned to {buses.find((b) => b.id === person.assigned_bus_id)?.name || "another bus"}, not {bus.name}.</div>
             </div>
-            <button onClick={confirmExceptionNotRiding} disabled={busy} className="rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 13, fontWeight: 600, padding: "11px 0", cursor: "pointer" }}>Not riding this bus</button>
-            <div style={{ color: C.ink40, fontSize: 10.5 }}>— or, to ride anyway, give a reason (also flags their home bus):</div>
+            <button onClick={confirmExceptionNotRiding} disabled={busy} className="rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 14.5, fontWeight: 600, padding: "11px 0", cursor: "pointer" }}>Not riding this bus</button>
+            <div style={{ color: C.ink40, fontSize: 12.5 }}>— or, to ride anyway, give a reason (also flags their home bus):</div>
             <input autoFocus value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (required to ride)"
-              className="w-full rounded-lg outline-none" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 12.5, padding: "9px 11px" }} />
+              className="w-full rounded-lg outline-none" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 13.5, padding: "9px 11px" }} />
             <button onClick={confirmExceptionRide} disabled={!reason.trim() || busy} className="rounded-lg"
-              style={{ background: reason.trim() ? C.ok : C.inkLine, color: C.ink, fontSize: 13, fontWeight: 700, padding: "11px 0", opacity: reason.trim() ? 1 : 0.6, border: "none", cursor: reason.trim() ? "pointer" : "default" }}>Confirm ride</button>
+              style={{ background: reason.trim() ? C.ok : C.inkLine, color: C.ink, fontSize: 14.5, fontWeight: 700, padding: "11px 0", opacity: reason.trim() ? 1 : 0.6, border: "none", cursor: reason.trim() ? "pointer" : "default" }}>Confirm ride</button>
           </div>
         )}
 
         {stage === "result" && resultView && (
           <div className="flex flex-col gap-3">
             <div className="rounded-xl px-4 py-3" style={{ background: `${resultView.color}1f`, border: `1px solid ${resultView.color}` }}>
-              <div style={{ color: resultView.color, fontSize: 14, fontWeight: 700 }}>{resultView.headline}</div>
-              <div style={{ color: C.ink60, fontSize: 12, marginTop: 4 }}>{resultView.detail}</div>
+              <div style={{ color: resultView.color, fontSize: 15.5, fontWeight: 700 }}>{resultView.headline}</div>
+              <div style={{ color: C.ink60, fontSize: 13.5, marginTop: 4 }}>{resultView.detail}</div>
             </div>
             <div className="flex gap-2">
-              <button onClick={reset} className="flex-1 rounded-lg" style={{ background: C.gold, color: C.ink, fontSize: 13, fontWeight: 700, padding: "10px 0", border: "none", cursor: "pointer" }}>Scan next</button>
-              <button onClick={onClose} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.ink60, fontSize: 13, fontWeight: 600, padding: "10px 0", cursor: "pointer" }}>Exit</button>
+              <button onClick={reset} className="flex-1 rounded-lg" style={{ background: C.gold, color: C.ink, fontSize: 14.5, fontWeight: 700, padding: "10px 0", border: "none", cursor: "pointer" }}>Scan next</button>
+              <button onClick={onClose} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.ink60, fontSize: 14.5, fontWeight: 600, padding: "10px 0", cursor: "pointer" }}>Exit</button>
             </div>
           </div>
         )}

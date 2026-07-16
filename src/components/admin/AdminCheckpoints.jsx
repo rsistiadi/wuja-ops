@@ -24,9 +24,9 @@ export default function AdminCheckpoints() {
         {checkpoints.map((cp) => (
           <button key={cp.id} onClick={() => { setEditing(cp); setScreen("form"); }} className="flex items-center gap-3 rounded-xl px-4 py-3.5" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, textAlign: "left", cursor: "pointer" }}>
             <div className="flex-1">
-              <div style={{ color: C.parchment, fontSize: 13.5, fontWeight: 600 }}>{cp.name}</div>
-              <div className="flex items-center gap-2 mt-1"><span style={{ color: C.ink40, fontSize: 11 }}>{CHECKPOINT_TYPE_OPTIONS.find((t) => t.value === cp.type)?.label}</span><span style={{ color: C.ink40, fontSize: 11 }}>·</span><span style={{ color: C.ink40, fontSize: 11 }}>{cp.date_label}</span></div>
-              <span className="inline-block mt-1.5 rounded-full" style={{ fontSize: 10, fontWeight: 700, padding: "2.5px 8px", background: `${C.guest}22`, color: C.guest }}>{ACCESS_RULE_OPTIONS.find((r) => r.value === cp.access_rule)?.label}</span>
+              <div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>{cp.name}</div>
+              <div className="flex items-center gap-2 mt-1"><span style={{ color: C.ink40, fontSize: 12.5 }}>{CHECKPOINT_TYPE_OPTIONS.find((t) => t.value === cp.type)?.label}</span><span style={{ color: C.ink40, fontSize: 12.5 }}>·</span><span style={{ color: C.ink40, fontSize: 12.5 }}>{cp.date_label}</span></div>
+              <span className="inline-block mt-1.5 rounded-full" style={{ fontSize: 11, fontWeight: 700, padding: "2.5px 8px", background: `${C.guest}22`, color: C.guest }}>{ACCESS_RULE_OPTIONS.find((r) => r.value === cp.access_rule)?.label}</span>
             </div>
             <Pencil size={14} color={C.ink40} />
           </button>
@@ -84,10 +84,10 @@ function CheckpointForm({ initial, buses, onBack, onSaved }) {
         <Field label="When"><input value={dateLabel} onChange={(e) => setDateLabel(e.target.value)} placeholder="e.g. Jul 31, 19:00" style={inputStyle} /></Field>
 
         <div>
-          <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600, marginBottom: 8 }}>Checkpoint type</div>
+          <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginBottom: 8 }}>Checkpoint type</div>
           <div className="flex gap-2">
             {CHECKPOINT_TYPE_OPTIONS.map((t) => { const active = type === t.value; return (
-              <button key={t.value} onClick={() => setType(t.value)} className="flex-1 rounded-xl py-3" style={{ background: active ? `${C.gold}1f` : C.ink, border: `1px solid ${active ? C.gold : C.inkLine}`, color: active ? C.gold : C.ink60, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{t.label}</button>
+              <button key={t.value} onClick={() => setType(t.value)} className="flex-1 rounded-xl py-3" style={{ background: active ? `${C.gold}1f` : C.ink, border: `1px solid ${active ? C.gold : C.inkLine}`, color: active ? C.gold : C.ink60, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{t.label}</button>
             ); })}
           </div>
         </div>
@@ -97,11 +97,11 @@ function CheckpointForm({ initial, buses, onBack, onSaved }) {
         )}
 
         <div>
-          <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600, marginBottom: 8 }}>Who's allowed in</div>
+          <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginBottom: 8 }}>Who's allowed in</div>
           <div className="flex flex-col gap-2">
             {ACCESS_RULE_OPTIONS.map((r) => { const active = accessRule === r.value; return (
               <button key={r.value} onClick={() => setAccessRule(r.value)} className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: active ? `${C.gold}1f` : C.ink, border: `1px solid ${active ? C.gold : C.inkLine}`, cursor: "pointer" }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: active ? C.gold : C.parchment }}>{r.label}</span>{active && <Check size={15} color={C.gold} />}
+                <span style={{ fontSize: 14.5, fontWeight: 600, color: active ? C.gold : C.parchment }}>{r.label}</span>{active && <Check size={15} color={C.gold} />}
               </button>
             ); })}
           </div>
@@ -109,11 +109,11 @@ function CheckpointForm({ initial, buses, onBack, onSaved }) {
 
         {(accessRule === "category" || accessRule === "both") && (
           <div>
-            <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600, marginBottom: 8 }}>Allowed categories</div>
+            <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginBottom: 8 }}>Allowed categories</div>
             <div className="flex flex-col gap-2">
               {CATEGORY_OPTIONS.map((c) => { const active = categories.includes(c.value); const color = CATEGORY_META[c.value].color; return (
                 <button key={c.value} onClick={() => toggleCategory(c.value)} className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: C.ink, border: `1px solid ${active ? color : C.inkLine}`, cursor: "pointer" }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 600, color }}>{c.label}</span>
+                  <span style={{ fontSize: 13.5, fontWeight: 600, color }}>{c.label}</span>
                   <div className="flex items-center justify-center rounded" style={{ width: 18, height: 18, background: active ? color : "transparent", border: `1.5px solid ${active ? color : C.inkLine}` }}>{active && <Check size={12} color={C.ink} />}</div>
                 </button>
               ); })}
@@ -123,23 +123,23 @@ function CheckpointForm({ initial, buses, onBack, onSaved }) {
 
         {(accessRule === "named" || accessRule === "both") && (
           <div>
-            <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600, marginBottom: 8 }}>Named guest list</div>
+            <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginBottom: 8 }}>Named guest list</div>
             {initial ? (
               <button onClick={() => setShowPicker(true)} className="w-full flex items-center justify-between rounded-xl px-4 py-3.5" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, cursor: "pointer" }}>
-                <span style={{ color: C.parchment, fontSize: 13, fontWeight: 600 }}>Manage guest list</span>
-                <span style={{ fontFamily: "JetBrains Mono, monospace", color: C.gold, fontSize: 13, fontWeight: 700 }}>{namedCount} added</span>
+                <span style={{ color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>Manage guest list</span>
+                <span style={{ fontFamily: "JetBrains Mono, monospace", color: C.gold, fontSize: 14.5, fontWeight: 700 }}>{namedCount} added</span>
               </button>
             ) : (
-              <div style={{ color: C.ink40, fontSize: 11.5 }}>Save the checkpoint first, then come back to add named guests.</div>
+              <div style={{ color: C.ink40, fontSize: 12.5 }}>Save the checkpoint first, then come back to add named guests.</div>
             )}
           </div>
         )}
 
-        {error && <div style={{ color: C.alert, fontSize: 12.5 }}>{error}</div>}
+        {error && <div style={{ color: C.alert, fontSize: 13.5 }}>{error}</div>}
       </div>
       <div className="px-5 pb-7 pt-3 flex flex-col gap-2.5" style={{ background: C.inkSoft }}>
         <PrimaryButton icon={Check} disabled={!name.trim() || saving} onClick={save}>{initial ? "Save changes" : "Create checkpoint"}</PrimaryButton>
-        {initial && <button onClick={remove} disabled={saving} className="w-full flex items-center justify-center gap-2 rounded-xl" style={{ background: "transparent", color: C.alert, fontWeight: 600, fontSize: 13, padding: "10px 16px", border: "none", cursor: "pointer" }}><Trash2 size={14} /> Delete checkpoint</button>}
+        {initial && <button onClick={remove} disabled={saving} className="w-full flex items-center justify-center gap-2 rounded-xl" style={{ background: "transparent", color: C.alert, fontWeight: 600, fontSize: 14.5, padding: "10px 16px", border: "none", cursor: "pointer" }}><Trash2 size={14} /> Delete checkpoint</button>}
       </div>
     </div>
   );
@@ -175,13 +175,13 @@ function GuestListPicker({ checkpointId, onBack, onDone }) {
       <div className="px-5 pb-4" style={{ background: C.ink }}>
         <div className="flex items-center gap-2 rounded-xl px-3" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}` }}>
           <Search size={16} color={C.ink60} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name…" className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 14, padding: "11px 4px", border: "none" }} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name…" className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 15.5, padding: "11px 4px", border: "none" }} />
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-2" style={{ background: C.inkSoft }}>
         {results.map((p) => { const active = pickedIds.has(p.id); return (
           <button key={p.id} onClick={() => toggle(p.id)} className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: C.ink, border: `1px solid ${active ? C.gold : C.inkLine}`, cursor: "pointer" }}>
-            <div className="text-left"><div style={{ color: C.parchment, fontSize: 13.5, fontWeight: 600 }}>{p.full_name}</div><div className="flex items-center gap-2 mt-1"><PersonTag reg={p} /></div></div>
+            <div className="text-left"><div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>{p.full_name}</div><div className="flex items-center gap-2 mt-1"><PersonTag reg={p} /></div></div>
             <div className="flex items-center justify-center rounded" style={{ width: 20, height: 20, background: active ? C.gold : "transparent", border: `1.5px solid ${active ? C.gold : C.inkLine}` }}>{active && <Check size={13} color={C.ink} />}</div>
           </button>
         ); })}
@@ -191,5 +191,5 @@ function GuestListPicker({ checkpointId, onBack, onDone }) {
   );
 }
 
-const inputStyle = { width: "100%", background: C.ink, border: `1px solid ${C.inkLine}`, borderRadius: 12, color: C.parchment, fontSize: 14, padding: "12px 14px", outline: "none" };
-function Field({ label, children }) { return <div><div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>{label}</div>{children}</div>; }
+const inputStyle = { width: "100%", background: C.ink, border: `1px solid ${C.inkLine}`, borderRadius: 12, color: C.parchment, fontSize: 15.5, padding: "12px 14px", outline: "none" };
+function Field({ label, children }) { return <div><div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginBottom: 6 }}>{label}</div>{children}</div>; }

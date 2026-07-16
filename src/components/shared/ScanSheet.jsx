@@ -67,30 +67,30 @@ export default function ScanSheet({ title, onClose, onResolve, requireReasonAlwa
   }
 
   return (
-    <div className="absolute inset-0 flex items-end" style={{ background: "rgba(10,15,26,0.82)" }}>
+    <div className="flex items-end" style={{ position: "fixed", inset: 0, zIndex: 30, background: "rgba(10,15,26,0.82)" }}>
       <div className="w-full rounded-t-2xl p-5" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, maxHeight: "85%", display: "flex", flexDirection: "column" }}>
         <div className="flex items-center justify-between mb-3">
-          <span style={{ color: C.parchment, fontSize: 14, fontWeight: 700 }}>{title}</span>
+          <span style={{ color: C.parchment, fontSize: 15.5, fontWeight: 700 }}>{title}</span>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.ink40} /></button>
         </div>
 
         {step === "search" && (
           <>
             {useCamera && (
-              <button onClick={() => setStep("scanning")} className="flex items-center justify-center gap-1.5 mb-3 rounded-lg" style={{ color: C.gold, fontSize: 12, fontWeight: 700, padding: "9px 0", border: `1px dashed ${C.gold}66`, background: "none", cursor: "pointer" }}>
+              <button onClick={() => setStep("scanning")} className="flex items-center justify-center gap-1.5 mb-3 rounded-lg" style={{ color: C.gold, fontSize: 13.5, fontWeight: 700, padding: "9px 0", border: `1px dashed ${C.gold}66`, background: "none", cursor: "pointer" }}>
                 <ScanLine size={13} /> Try scanning again
               </button>
             )}
             <div className="flex items-center gap-2 rounded-xl px-3 mb-3" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}` }}>
               <Search size={14} color={C.ink40} />
               <input autoFocus value={query} onChange={(e) => runSearch(e.target.value)} placeholder="Search entire database…"
-                className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 13, padding: "9px 4px", border: "none" }} />
+                className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 14.5, padding: "9px 4px", border: "none" }} />
             </div>
-            {searchError && <div style={{ color: C.alert, fontSize: 11.5, marginBottom: 8 }}>{searchError}</div>}
+            {searchError && <div style={{ color: C.alert, fontSize: 12.5, marginBottom: 8 }}>{searchError}</div>}
             <div className="overflow-y-auto flex flex-col gap-1.5">
               {results.map((p) => (
                 <button key={p.id} onClick={() => selectPerson(p)} className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg" style={{ background: C.inkSoft, border: "none", cursor: "pointer" }}>
-                  <span style={{ color: C.parchment, fontSize: 12.5 }}>{p.full_name}</span>
+                  <span style={{ color: C.parchment, fontSize: 13.5 }}>{p.full_name}</span>
                   <PersonTag reg={p} />
                 </button>
               ))}
@@ -100,23 +100,23 @@ export default function ScanSheet({ title, onClose, onResolve, requireReasonAlwa
 
         {step === "reason" && (
           <div className="flex flex-col gap-3">
-            <div style={{ color: C.parchment, fontSize: 13, fontWeight: 600 }}>{person.full_name}</div>
+            <div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>{person.full_name}</div>
             <input autoFocus value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (required)"
-              className="w-full rounded-lg outline-none" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 12.5, padding: "9px 11px" }} />
+              className="w-full rounded-lg outline-none" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 13.5, padding: "9px 11px" }} />
             <button onClick={confirmReason} disabled={!reason.trim()} className="rounded-lg"
-              style={{ background: reason.trim() ? C.gold : C.inkLine, color: C.ink, fontSize: 13, fontWeight: 700, padding: "10px 0", opacity: reason.trim() ? 1 : 0.6, border: "none", cursor: reason.trim() ? "pointer" : "default" }}>Confirm</button>
+              style={{ background: reason.trim() ? C.gold : C.inkLine, color: C.ink, fontSize: 14.5, fontWeight: 700, padding: "10px 0", opacity: reason.trim() ? 1 : 0.6, border: "none", cursor: reason.trim() ? "pointer" : "default" }}>Confirm</button>
           </div>
         )}
 
         {step === "result" && resultView && (
           <div className="flex flex-col gap-3">
             <div className="rounded-xl px-4 py-3" style={{ background: `${resultView.color}1f`, border: `1px solid ${resultView.color}` }}>
-              <div style={{ color: resultView.color, fontSize: 14, fontWeight: 700 }}>{resultView.headline}</div>
-              <div style={{ color: C.ink60, fontSize: 12, marginTop: 4 }}>{resultView.detail}</div>
+              <div style={{ color: resultView.color, fontSize: 15.5, fontWeight: 700 }}>{resultView.headline}</div>
+              <div style={{ color: C.ink60, fontSize: 13.5, marginTop: 4 }}>{resultView.detail}</div>
             </div>
             <div className="flex gap-2">
-              <button onClick={reset} className="flex-1 rounded-lg" style={{ background: C.gold, color: C.ink, fontSize: 13, fontWeight: 700, padding: "10px 0", border: "none", cursor: "pointer" }}>Scan next</button>
-              <button onClick={onClose} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.ink60, fontSize: 13, fontWeight: 600, padding: "10px 0", cursor: "pointer" }}>Exit</button>
+              <button onClick={reset} className="flex-1 rounded-lg" style={{ background: C.gold, color: C.ink, fontSize: 14.5, fontWeight: 700, padding: "10px 0", border: "none", cursor: "pointer" }}>Scan next</button>
+              <button onClick={onClose} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.ink60, fontSize: 14.5, fontWeight: 600, padding: "10px 0", cursor: "pointer" }}>Exit</button>
             </div>
           </div>
         )}

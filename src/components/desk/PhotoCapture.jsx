@@ -90,7 +90,7 @@ export default function PhotoCapture({ reg, allowSkip, onBack, onNext }) {
       <TopBar title="Capture Photo" subtitle={reg.full_name} onBack={onBack} accent={meta.color} />
       <StepDots step={1} total={3} />
       <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col" style={{ background: C.inkSoft }}>
-        <div style={{ color: C.ink60, fontSize: 12, marginBottom: 12 }}>
+        <div style={{ color: C.ink60, fontSize: 13.5, marginBottom: 12 }}>
           Align face and shoulders within the frame — same framing for everyone keeps badges consistent.
         </div>
 
@@ -99,7 +99,7 @@ export default function PhotoCapture({ reg, allowSkip, onBack, onNext }) {
             cameraError ? (
               <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6">
                 <AlertTriangle size={28} color={C.gold} />
-                <div style={{ color: C.ink60, fontSize: 12.5, textAlign: "center" }}>{cameraError}</div>
+                <div style={{ color: C.ink60, fontSize: 13.5, textAlign: "center" }}>{cameraError}</div>
               </div>
             ) : (
               <>
@@ -115,7 +115,7 @@ export default function PhotoCapture({ reg, allowSkip, onBack, onNext }) {
           )}
         </div>
 
-        <div style={{ color: C.ink40, fontSize: 10.5, textAlign: "center", marginTop: 8 }}>Plain background · Even lighting · Shoulders level</div>
+        <div style={{ color: C.ink40, fontSize: 12.5, textAlign: "center", marginTop: 8 }}>Plain background · Even lighting · Shoulders level</div>
 
         {!capturedBlob ? (
           <div className="flex flex-col items-center gap-3 mt-4">
@@ -123,7 +123,7 @@ export default function PhotoCapture({ reg, allowSkip, onBack, onNext }) {
               style={{ width: 68, height: 68, background: C.gold, border: `4px solid ${C.goldDeep}`, cursor: cameraError ? "default" : "pointer", opacity: cameraError ? 0.5 : 1 }}>
               <Camera size={26} color={C.ink} />
             </button>
-            <button onClick={() => fileInputRef.current?.click()} style={{ color: C.ink40, fontSize: 11.5, background: "none", border: "none", textDecoration: "underline", cursor: "pointer" }}>
+            <button onClick={() => fileInputRef.current?.click()} style={{ color: C.ink40, fontSize: 12.5, background: "none", border: "none", textDecoration: "underline", cursor: "pointer" }}>
               Upload photo instead
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} style={{ display: "none" }} />
@@ -132,7 +132,7 @@ export default function PhotoCapture({ reg, allowSkip, onBack, onNext }) {
           <div className="mt-4"><GhostButton icon={RotateCcw} onClick={retake}>Retake</GhostButton></div>
         )}
 
-        {error && <div style={{ color: C.alert, fontSize: 12.5, marginTop: 10 }}>{error}</div>}
+        {error && <div style={{ color: C.alert, fontSize: 13.5, marginTop: 10 }}>{error}</div>}
       </div>
       <div className="px-5 pb-7 pt-3 flex flex-col gap-2.5" style={{ background: C.inkSoft }}>
         <PrimaryButton icon={ArrowRight} disabled={!capturedBlob || saving} onClick={confirm}>{saving ? "Uploading…" : "Confirm photo"}</PrimaryButton>

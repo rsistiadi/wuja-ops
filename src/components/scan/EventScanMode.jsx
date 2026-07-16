@@ -81,7 +81,7 @@ export default function EventScanMode() {
   };
 
   if (!cp) {
-    return <div className="flex-1 flex items-center justify-center" style={{ background: C.inkSoft, color: C.ink40, fontSize: 13 }}>No checkpoints configured yet — set these up in Admin first.</div>;
+    return <div className="flex-1 flex items-center justify-center" style={{ background: C.inkSoft, color: C.ink40, fontSize: 14.5 }}>No checkpoints configured yet — set these up in Admin first.</div>;
   }
 
   return (
@@ -92,17 +92,17 @@ export default function EventScanMode() {
       </div>
       {loadError && (
         <div className="mx-5 mb-3 rounded-lg px-3 py-2.5" style={{ background: `${C.alert}1f`, border: `1px solid ${C.alert}` }}>
-          <span style={{ color: C.alert, fontSize: 11.5, fontWeight: 600 }}>{loadError}</span>
+          <span style={{ color: C.alert, fontSize: 12.5, fontWeight: 600 }}>{loadError}</span>
         </div>
       )}
       <div className="flex-1 flex flex-col items-center justify-center gap-2" style={{ background: C.inkSoft }}>
         <div style={{ width: 96, height: 96, borderRadius: 999, border: `1.5px dashed ${C.inkLine}`, display: "flex", alignItems: "center", justifyContent: "center" }}><ScanLine size={40} color={C.ink40} /></div>
-        <div style={{ color: C.ink40, fontSize: 12.5 }}>Ready to scan next badge</div>
+        <div style={{ color: C.ink40, fontSize: 13.5 }}>Ready to scan next badge</div>
       </div>
       <div className="px-5 pb-7 pt-3 flex flex-col gap-2" style={{ background: C.inkSoft, position: "relative" }}>
-        <div style={{ color: C.ink40, fontSize: 11, textAlign: "center" }}>Scanned {stats.scanned} · Allowed {stats.allowed} · Denied {stats.denied}</div>
-        <button onClick={() => setSheet("scan")} className="w-full flex items-center justify-center gap-2.5 rounded-xl" style={{ background: C.gold, color: C.ink, fontWeight: 700, fontSize: 16, padding: "16px 0", border: "none", cursor: "pointer" }}><ScanLine size={20} /> SCAN BADGE</button>
-        <button onClick={() => setSheet("manual")} className="w-full flex items-center justify-center gap-2 rounded-xl" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, color: C.parchment, fontWeight: 700, fontSize: 12.5, padding: "10px 0", cursor: "pointer" }}><UserPlus size={14} /> Manual add (badge unavailable)</button>
+        <div style={{ color: C.ink40, fontSize: 12.5, textAlign: "center" }}>Scanned {stats.scanned} · Allowed {stats.allowed} · Denied {stats.denied}</div>
+        <button onClick={() => setSheet("scan")} className="w-full flex items-center justify-center gap-2.5 rounded-xl" style={{ background: C.gold, color: C.ink, fontWeight: 700, fontSize: 16.5, padding: "16px 0", border: "none", cursor: "pointer" }}><ScanLine size={20} /> SCAN BADGE</button>
+        <button onClick={() => setSheet("manual")} className="w-full flex items-center justify-center gap-2 rounded-xl" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, color: C.parchment, fontWeight: 700, fontSize: 13.5, padding: "10px 0", cursor: "pointer" }}><UserPlus size={14} /> Manual add (badge unavailable)</button>
 
         {sheet === "scan" && <ScanSheet title="Scan badge" onClose={() => setSheet(null)} onResolve={resolveScan} requireReasonAlways={false} useCamera={true} />}
         {sheet === "manual" && <ScanSheet title="Manual add" onClose={() => setSheet(null)} onResolve={resolveManual} requireReasonAlways={true} useCamera={false} />}

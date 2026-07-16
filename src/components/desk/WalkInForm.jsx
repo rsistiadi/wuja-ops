@@ -15,7 +15,6 @@ export default function WalkInForm({ buses, onCancel, onCreate }) {
   const [linkedResults, setLinkedResults] = useState([]);
   const [linkedPerson, setLinkedPerson] = useState(null);
   const [assignedBusId, setAssignedBusId] = useState("");
-  const [contactShareable, setContactShareable] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -44,7 +43,6 @@ export default function WalkInForm({ buses, onCancel, onCreate }) {
           performer_color: category === "performer" ? performerColor : null,
           linked_registration_id: category === "accompanying" ? linkedPerson.id : null,
           assigned_bus_id: assignedBusId || null,
-          contact_shareable: contactShareable,
         })
         .select()
         .single();
@@ -82,10 +80,10 @@ export default function WalkInForm({ buses, onCancel, onCreate }) {
 
         {category === "accompanying" && (
           <div>
-            <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600, marginBottom: 8 }}>Accompanying whom?</div>
+            <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginBottom: 8 }}>Accompanying whom?</div>
             {linkedPerson ? (
               <div className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: C.ink, border: `1px solid ${C.gold}` }}>
-                <span style={{ color: C.parchment, fontSize: 13, fontWeight: 600 }}>{linkedPerson.full_name}</span>
+                <span style={{ color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>{linkedPerson.full_name}</span>
                 <button onClick={() => setLinkedPerson(null)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={15} color={C.ink40} /></button>
               </div>
             ) : (
@@ -93,12 +91,12 @@ export default function WalkInForm({ buses, onCancel, onCreate }) {
                 <div className="flex items-center gap-2 rounded-xl px-3" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
                   <Search size={14} color={C.ink40} />
                   <input value={linkedQuery} onChange={(e) => setLinkedQuery(e.target.value)} placeholder="Search name…"
-                    className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 13, padding: "10px 4px", border: "none" }} />
+                    className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 14.5, padding: "10px 4px", border: "none" }} />
                 </div>
                 {linkedResults.length > 0 && (
                   <div className="flex flex-col gap-1.5 mt-2">
                     {linkedResults.map((p) => (
-                      <button key={p.id} onClick={() => { setLinkedPerson(p); setLinkedQuery(""); setLinkedResults([]); }} className="rounded-lg px-3 py-2 text-left" style={{ background: C.inkSoft, border: "none", color: C.parchment, fontSize: 12.5, cursor: "pointer" }}>{p.full_name}</button>
+                      <button key={p.id} onClick={() => { setLinkedPerson(p); setLinkedQuery(""); setLinkedResults([]); }} className="rounded-lg px-3 py-2 text-left" style={{ background: C.inkSoft, border: "none", color: C.parchment, fontSize: 13.5, cursor: "pointer" }}>{p.full_name}</button>
                     ))}
                   </div>
                 )}
@@ -111,17 +109,7 @@ export default function WalkInForm({ buses, onCancel, onCreate }) {
           <Field label="Assign to bus"><Dropdown value={assignedBusId} onChange={setAssignedBusId} options={buses.map((b) => ({ value: b.id, label: b.name }))} /></Field>
         )}
 
-        <div className="rounded-xl p-4" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
-          <div className="flex items-center justify-between">
-            <div className="pr-3">
-              <div style={{ color: C.parchment, fontSize: 13, fontWeight: 600 }}>Share contact on public badge profile?</div>
-              <div style={{ color: C.ink60, fontSize: 11, marginTop: 2 }}>Only controls whether phone/email are visible when someone scans their badge.</div>
-            </div>
-            <input type="checkbox" checked={contactShareable} onChange={(e) => setContactShareable(e.target.checked)} style={{ width: 20, height: 20 }} />
-          </div>
-        </div>
-
-        {error && <div style={{ color: C.alert, fontSize: 12.5 }}>{error}</div>}
+        {error && <div style={{ color: C.alert, fontSize: 13.5 }}>{error}</div>}
       </div>
       <div className="px-5 pb-7 pt-3" style={{ background: C.inkSoft }}>
         <PrimaryButton icon={ArrowRight} disabled={!canSubmit || saving} onClick={submit}>{saving ? "Creating…" : "Create & continue"}</PrimaryButton>
@@ -130,12 +118,12 @@ export default function WalkInForm({ buses, onCancel, onCreate }) {
   );
 }
 
-const inputStyle = { width: "100%", background: C.ink, border: `1px solid ${C.inkLine}`, borderRadius: 12, color: C.parchment, fontSize: 14, padding: "12px 14px", outline: "none" };
+const inputStyle = { width: "100%", background: C.ink, border: `1px solid ${C.inkLine}`, borderRadius: 12, color: C.parchment, fontSize: 15.5, padding: "12px 14px", outline: "none" };
 
 function Field({ label, children }) {
   return (
     <div>
-      <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>{label}</div>
+      <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginBottom: 6 }}>{label}</div>
       {children}
     </div>
   );

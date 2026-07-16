@@ -35,16 +35,16 @@ export default function QrScannerView({ onResult, onCancel, title = "Scan badge 
   }, []);
 
   return (
-    <div className="absolute inset-0 flex flex-col" style={{ background: "#000", zIndex: 10 }}>
+    <div className="flex flex-col" style={{ position: "fixed", inset: 0, zIndex: 40, background: "#000" }}>
       <div className="flex items-center justify-between px-5 py-4" style={{ background: "rgba(10,15,26,0.85)" }}>
-        <span style={{ color: C.parchment, fontSize: 14, fontWeight: 700 }}>{title}</span>
+        <span style={{ color: C.parchment, fontSize: 15.5, fontWeight: 700 }}>{title}</span>
         <button onClick={onCancel} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={20} color={C.parchment} /></button>
       </div>
       <div className="flex-1 relative overflow-hidden">
         {error ? (
           <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-6">
             <AlertTriangle size={28} color={C.gold} />
-            <div style={{ color: C.parchment, fontSize: 13, textAlign: "center" }}>{error}</div>
+            <div style={{ color: C.parchment, fontSize: 14.5, textAlign: "center" }}>{error}</div>
           </div>
         ) : (
           <>
@@ -61,7 +61,7 @@ export default function QrScannerView({ onResult, onCancel, title = "Scan badge 
               width: "min(70vw, 60vh, 280px)", aspectRatio: "1 / 1", borderRadius: 16,
               border: "3px solid #FFD24C", boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)", pointerEvents: "none",
             }} />
-            <div style={{ position: "absolute", bottom: 20, left: 0, right: 0, textAlign: "center", color: C.parchment, fontSize: 12 }}>Hold the badge QR inside the frame</div>
+            <div style={{ position: "absolute", bottom: 20, left: 0, right: 0, textAlign: "center", color: C.parchment, fontSize: 13.5 }}>Hold the badge QR inside the frame</div>
           </>
         )}
       </div>
