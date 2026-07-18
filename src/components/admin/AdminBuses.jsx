@@ -129,8 +129,22 @@ function BusRosterPicker({ bus, onBack }) {
   const [results, setResults] = useState([]);
 
   useEffect(() => {
-    const query = supabase.from("registrations").select("id, full_name, category, assigned_bus_id");
-    (q.trim().length >= 2 ? query.ilike("full_name", `%${q.trim()}%`) : query.eq("assigned_bus_id", bus.id)).limit(50).then(({ data }) => setResults(data || []));
+    if (q.trim().length >= 2) {
+      // Search mode: only show people who are unassigned or already on
+      // THIS bus — someone assigned to a different bus is deliberately
+      // hidden here, so a single tap can never silently steal them away
+      // from wherever they were already assigned. Moving someone
+      // between buses is a deliberate two-step action (unassign, then
+      // reassign), not a one-tap accident.
+      supabase.from("registrations").select("id, full_name, category, assigned_bus_id")
+        .ilike("full_name", `%${q.trim()}%`)
+        .or(`assigned_bus_id.is.null,assigned_bus_id.eq.${bus.id}`)
+        .limit(50)
+        .then(({ data }) => setResults(data || []));
+    } else {
+      supabase.from("registrations").select("id, full_name, category, assigned_bus_id").eq("assigned_bus_id", bus.id).limit(50)
+        .then(({ data }) => setResults(data || []));
+    }
   }, [q, bus.id]);
 
   const toggle = async (p) => {
@@ -145,7 +159,7 @@ function BusRosterPicker({ bus, onBack }) {
       <div className="px-5 pb-4" style={{ background: C.ink }}>
         <div className="flex items-center gap-2 rounded-xl px-3" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}` }}>
           <Search size={16} color={C.ink60} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name… (blank = current roster)" className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 15.5, padding: "11px 4px", border: "none" }} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search unassigned people… (blank = current roster)" className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 15.5, padding: "11px 4px", border: "none" }} />
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-2" style={{ background: C.inkSoft }}>

@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { X } from "lucide-react";
 import { C } from "../../lib/tokens";
 import { TopBar, PersonTag, Dropdown } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
+import VirtualList from "../shared/VirtualList";
 
 const CREW_CATEGORIES = ["committee", "volunteer"];
+const STATUS_LABELS = { pending: "Pending", badge_pending: "Badge Pending", checked_in: "Checked In" };
 
 export default function ReportsScreen() {
   const [participantCounts, setParticipantCounts] = useState({ pending: 0, badge_pending: 0, checked_in: 0 });
@@ -14,6 +16,8 @@ export default function ReportsScreen() {
   const [activity, setActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busDetail, setBusDetail] = useState(null); // { bus } while a detail sheet is open
+  const [statusDetail, setStatusDetail] = useState(null); // { group: 'participant'|'crew', status: 'pending'|... }
+  const [checkpointDetail, setCheckpointDetail] = useState(null); // { checkpoint }
 
   useEffect(() => {
     let cancelled = false;
@@ -87,20 +91,20 @@ export default function ReportsScreen() {
         {loading && <div style={{ color: C.ink40, fontSize: 13.5 }}>Loading…</div>}
 
         <div>
-          <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>PARTICIPANTS</div>
+          <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>PARTICIPANTS <span style={{ fontWeight: 500, textTransform: "none" }}>— tap for detail</span></div>
           <div className="grid grid-cols-3 gap-2">
-            <Stat label="Pending" value={participantCounts.pending} color={C.ink40} />
-            <Stat label="Badge Pending" value={participantCounts.badge_pending} color={C.gold} />
-            <Stat label="Checked In" value={participantCounts.checked_in} color={C.ok} />
+            <Stat label="Pending" value={participantCounts.pending} color={C.ink40} onClick={() => setStatusDetail({ group: "participant", status: "pending" })} />
+            <Stat label="Badge Pending" value={participantCounts.badge_pending} color={C.gold} onClick={() => setStatusDetail({ group: "participant", status: "badge_pending" })} />
+            <Stat label="Checked In" value={participantCounts.checked_in} color={C.ok} onClick={() => setStatusDetail({ group: "participant", status: "checked_in" })} />
           </div>
         </div>
 
         <div>
-          <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>CREW / COMMITTEE</div>
+          <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>CREW / COMMITTEE <span style={{ fontWeight: 500, textTransform: "none" }}>— tap for detail</span></div>
           <div className="grid grid-cols-3 gap-2">
-            <Stat label="Pending" value={crewCounts.pending} color={C.ink40} />
-            <Stat label="Badge Pending" value={crewCounts.badge_pending} color={C.gold} />
-            <Stat label="Checked In" value={crewCounts.checked_in} color={C.ok} />
+            <Stat label="Pending" value={crewCounts.pending} color={C.ink40} onClick={() => setStatusDetail({ group: "crew", status: "pending" })} />
+            <Stat label="Badge Pending" value={crewCounts.badge_pending} color={C.gold} onClick={() => setStatusDetail({ group: "crew", status: "badge_pending" })} />
+            <Stat label="Checked In" value={crewCounts.checked_in} color={C.ok} onClick={() => setStatusDetail({ group: "crew", status: "checked_in" })} />
           </div>
         </div>
 
@@ -123,13 +127,13 @@ export default function ReportsScreen() {
         </div>
 
         <div>
-          <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>EVENT & ENTRY CHECKPOINTS</div>
+          <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>EVENT & ENTRY CHECKPOINTS <span style={{ fontWeight: 500, textTransform: "none" }}>— tap for detail</span></div>
           {eventReport.length === 0 && !loading && <div style={{ color: C.ink40, fontSize: 13.5 }}>No checkpoints configured.</div>}
           {eventReport.map(({ checkpoint, scanned, allowed, denied }) => (
-            <div key={checkpoint.id} className="rounded-xl p-3.5 mb-2 flex items-center justify-between" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
+            <button key={checkpoint.id} onClick={() => setCheckpointDetail({ checkpoint })} className="w-full text-left rounded-xl p-3.5 mb-2 flex items-center justify-between" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, cursor: "pointer" }}>
               <span style={{ color: C.parchment, fontSize: 13.5, fontWeight: 600 }}>{checkpoint.name}</span>
               <span style={{ fontFamily: "JetBrains Mono, monospace", color: C.ink40, fontSize: 12.5 }}>{scanned} scanned · <span style={{ color: C.ok }}>{allowed} allowed</span> · <span style={{ color: C.alert }}>{denied} denied</span></span>
-            </div>
+            </button>
           ))}
         </div>
 
@@ -146,6 +150,8 @@ export default function ReportsScreen() {
       </div>
 
       {busDetail && <BusDetailSheet bus={busDetail.bus} onClose={() => setBusDetail(null)} />}
+      {statusDetail && <StatusDetailSheet group={statusDetail.group} status={statusDetail.status} onClose={() => setStatusDetail(null)} />}
+      {checkpointDetail && <CheckpointDetailSheet checkpoint={checkpointDetail.checkpoint} onClose={() => setCheckpointDetail(null)} />}
     </div>
   );
 }
@@ -163,7 +169,7 @@ function BusDetailSheet({ bus, onClose }) {
       setLegs(data || []);
       if (data?.length) setLegId(data[0].id);
     });
-    supabase.from("registrations").select("id, full_name, category").eq("assigned_bus_id", bus.id).then(({ data }) => setRoster(data || []));
+    supabase.from("registrations").select("id, full_name, category, phone").eq("assigned_bus_id", bus.id).then(({ data }) => setRoster(data || []));
   }, [bus.id]);
 
   const refetch = useCallback(async () => {
@@ -179,6 +185,8 @@ function BusDetailSheet({ bus, onClose }) {
 
   const statusFor = (id) => statuses.find((s) => s.registration_id === id);
 
+  const rosterWithStatus = useMemo(() => roster.map((p) => ({ ...p, _rec: statusFor(p.id) })), [roster, statuses]);
+
   return (
     <div className="flex flex-col" style={{ position: "fixed", inset: 0, zIndex: 30, background: C.ink }}>
       <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${C.inkLine}` }}>
@@ -191,35 +199,184 @@ function BusDetailSheet({ bus, onClose }) {
       <div className="px-5 py-3" style={{ background: C.inkSoft }}>
         <Dropdown value={legId} onChange={setLegId} options={legs.map((l) => ({ value: l.id, label: l.label }))} />
       </div>
-      <div className="flex-1 overflow-y-auto px-5 py-3 flex flex-col gap-2" style={{ background: C.inkSoft }}>
-        {loading && <div style={{ color: C.ink40, fontSize: 13.5 }}>Loading…</div>}
-        {error && <div style={{ color: C.alert, fontSize: 13.5 }}>Couldn't load trip status: {error}</div>}
-        {!loading && roster.map((p) => {
-          const rec = statusFor(p.id);
-          let pill = { text: "UNACCOUNTED", color: C.alert };
-          if (rec?.status === "not_riding") pill = { text: "NOT RIDING", color: C.ink60 };
-          else if (rec?.status === "boarded" && rec.bus_id === bus.id) pill = { text: "BOARDED", color: C.ok };
-          else if (rec?.status === "boarded" && rec.bus_id !== bus.id) pill = { text: "ON ANOTHER BUS", color: C.guest };
-          return (
-            <div key={p.id} className="rounded-xl px-4 py-3" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
-              <div className="flex items-center justify-between">
-                <div><div style={{ color: C.parchment, fontSize: 13.5, fontWeight: 600 }}>{p.full_name}</div><div className="mt-1"><PersonTag reg={p} /></div></div>
-                <span className="rounded-full" style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", background: `${pill.color}22`, color: pill.color }}>{pill.text}</span>
+      {loading && <div style={{ color: C.ink40, fontSize: 13.5, padding: "0 20px" }}>Loading…</div>}
+      {error && <div style={{ color: C.alert, fontSize: 13.5, padding: "0 20px" }}>Couldn't load trip status: {error}</div>}
+      {!loading && (
+        <VirtualList
+          items={rosterWithStatus}
+          rowHeight={78}
+          searchKeys={["full_name", "phone"]}
+          searchPlaceholder="Search roster…"
+          emptyLabel="No matches."
+          renderRow={(p) => {
+            const rec = p._rec;
+            let pill = { text: "UNACCOUNTED", color: C.alert };
+            if (rec?.status === "not_riding") pill = { text: "NOT RIDING", color: C.ink60 };
+            else if (rec?.status === "boarded" && rec.bus_id === bus.id) pill = { text: "BOARDED", color: C.ok };
+            else if (rec?.status === "boarded" && rec.bus_id !== bus.id) pill = { text: "ON ANOTHER BUS", color: C.guest };
+            return (
+              <div className="rounded-xl px-4 py-3 h-full" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}` }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div style={{ color: C.parchment, fontSize: 13.5, fontWeight: 600 }}>{p.full_name}</div>
+                    <div style={{ color: C.ink40, fontSize: 11.5, marginTop: 2 }}>{p.phone || "—"}</div>
+                  </div>
+                  <span className="rounded-full" style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", background: `${pill.color}22`, color: pill.color, flexShrink: 0 }}>{pill.text}</span>
+                </div>
+                {rec?.reason && <div style={{ color: C.ink40, fontSize: 12, fontStyle: "italic", marginTop: 4 }}>"{rec.reason}"</div>}
               </div>
-              {rec?.reason && <div style={{ color: C.ink40, fontSize: 12.5, fontStyle: "italic", marginTop: 6 }}>"{rec.reason}"</div>}
-            </div>
-          );
-        })}
-      </div>
+            );
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function Stat({ label, value, color }) {
+// Backs all 6 Participant/Crew status cards — same shape of question
+// each time ("who exactly is in this bucket"), just a different filter.
+function StatusDetailSheet({ group, status, onClose }) {
+  const [people, setPeople] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      let q = supabase.from("registrations").select("id, full_name, phone, category");
+      q = group === "crew" ? q.in("category", CREW_CATEGORIES) : q.not("category", "in", `(${CREW_CATEGORIES.join(",")})`);
+      if (status === "pending") q = q.eq("registered", false);
+      else if (status === "badge_pending") q = q.eq("registered", true).eq("badge_status", "not_received");
+      else q = q.eq("registered", true).eq("badge_status", "received");
+
+      const { data, error } = await q.order("full_name");
+      if (cancelled) return;
+      if (error) { setError(error.message); setLoading(false); return; }
+      setError("");
+      setPeople(data || []);
+      setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [group, status]);
+
+  const title = `${group === "crew" ? "Crew / Committee" : "Participants"} — ${STATUS_LABELS[status]}`;
+
   return (
-    <div className="rounded-lg text-center py-3" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
+    <div className="flex flex-col" style={{ position: "fixed", inset: 0, zIndex: 30, background: C.ink }}>
+      <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${C.inkLine}` }}>
+        <div>
+          <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 17, fontWeight: 600 }}>{title}</div>
+          <div style={{ color: C.ink40, fontSize: 12.5 }}>{people.length} {people.length === 1 ? "person" : "people"}</div>
+        </div>
+        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={20} color={C.ink40} /></button>
+      </div>
+      {loading && <div style={{ color: C.ink40, fontSize: 13.5, padding: "16px 20px" }}>Loading…</div>}
+      {error && <div style={{ color: C.alert, fontSize: 13.5, padding: "16px 20px" }}>Couldn't load: {error}</div>}
+      {!loading && !error && (
+        <VirtualList
+          items={people}
+          rowHeight={70}
+          searchKeys={["full_name", "phone"]}
+          searchPlaceholder="Search name or phone…"
+          emptyLabel="Nobody in this bucket."
+          renderRow={(p) => (
+            <div className="rounded-xl px-4 py-3 h-full flex items-center justify-between" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}` }}>
+              <div>
+                <div style={{ color: C.parchment, fontSize: 13.5, fontWeight: 600 }}>{p.full_name}</div>
+                <div style={{ color: C.ink40, fontSize: 11.5, marginTop: 2 }}>{p.phone || "— no phone on file —"}</div>
+              </div>
+              <PersonTag reg={p} />
+            </div>
+          )}
+        />
+      )}
+    </div>
+  );
+}
+
+// Event Scan doesn't have a fixed roster like buses do — it's a log of
+// scan events, and the same person can scan multiple times (re-entry).
+// This shows one row per unique person with their MOST RECENT result,
+// answering "who's currently allowed/denied here" rather than a full
+// chronological log of every scan.
+function CheckpointDetailSheet({ checkpoint, onClose }) {
+  const [people, setPeople] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      const { data: logs, error: logErr } = await supabase
+        .from("event_scan_log")
+        .select("registration_id, allowed, scanned_at")
+        .eq("checkpoint_id", checkpoint.id)
+        .order("scanned_at", { ascending: false });
+      if (cancelled) return;
+      if (logErr) { setError(logErr.message); setLoading(false); return; }
+
+      // Latest scan per person — logs are already newest-first, so the
+      // first time we see a registration_id is its latest result.
+      const latestByPerson = new Map();
+      for (const row of logs || []) {
+        if (!latestByPerson.has(row.registration_id)) latestByPerson.set(row.registration_id, row);
+      }
+      const ids = [...latestByPerson.keys()];
+      if (ids.length === 0) { setPeople([]); setLoading(false); return; }
+
+      const { data: regs, error: regErr } = await supabase.from("registrations").select("id, full_name, phone, category").in("id", ids);
+      if (cancelled) return;
+      if (regErr) { setError(regErr.message); setLoading(false); return; }
+
+      setError("");
+      setPeople((regs || []).map((r) => ({ ...r, _latest: latestByPerson.get(r.id) })));
+      setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [checkpoint.id]);
+
+  return (
+    <div className="flex flex-col" style={{ position: "fixed", inset: 0, zIndex: 30, background: C.ink }}>
+      <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${C.inkLine}` }}>
+        <div>
+          <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 17, fontWeight: 600 }}>{checkpoint.name} — Full Detail</div>
+          <div style={{ color: C.ink40, fontSize: 12.5 }}>{people.length} unique {people.length === 1 ? "person" : "people"} scanned</div>
+        </div>
+        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={20} color={C.ink40} /></button>
+      </div>
+      {loading && <div style={{ color: C.ink40, fontSize: 13.5, padding: "16px 20px" }}>Loading…</div>}
+      {error && <div style={{ color: C.alert, fontSize: 13.5, padding: "16px 20px" }}>Couldn't load: {error}</div>}
+      {!loading && !error && (
+        <VirtualList
+          items={people}
+          rowHeight={70}
+          searchKeys={["full_name", "phone"]}
+          searchPlaceholder="Search name or phone…"
+          emptyLabel="No scans logged yet."
+          renderRow={(p) => (
+            <div className="rounded-xl px-4 py-3 h-full flex items-center justify-between" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}` }}>
+              <div>
+                <div style={{ color: C.parchment, fontSize: 13.5, fontWeight: 600 }}>{p.full_name}</div>
+                <div style={{ color: C.ink40, fontSize: 11.5, marginTop: 2 }}>{p.phone || "—"} · last scan {new Date(p._latest.scanned_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+              </div>
+              <span className="rounded-full" style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", background: p._latest.allowed ? `${C.ok}22` : `${C.alert}22`, color: p._latest.allowed ? C.ok : C.alert, flexShrink: 0 }}>{p._latest.allowed ? "ALLOWED" : "DENIED"}</span>
+            </div>
+          )}
+        />
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value, color, onClick }) {
+  return (
+    <button onClick={onClick} className="rounded-lg text-center py-3 w-full" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, cursor: onClick ? "pointer" : "default" }}>
       <div style={{ fontFamily: "JetBrains Mono, monospace", color, fontSize: 21, fontWeight: 700 }}>{value}</div>
       <div style={{ color: C.ink40, fontSize: 11, fontWeight: 600 }}>{label.toUpperCase()}</div>
-    </div>
+    </button>
   );
 }

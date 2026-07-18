@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import React, { useState, useCallback } from "react";
 import { getBadgePhotoUrl } from "../../lib/photoStorage";
 import SearchScreen from "./SearchScreen";
 import WalkInForm from "./WalkInForm";
@@ -15,11 +14,6 @@ export default function DeskApp({ allowSkipPhoto }) {
   const [badge, setBadge] = useState("");
   const [photoStatus, setPhotoStatus] = useState("none");
   const [photoUrl, setPhotoUrl] = useState(null);
-  const [buses, setBuses] = useState([]);
-
-  useEffect(() => {
-    supabase.from("buses").select("id, name").order("name").then(({ data }) => setBuses(data || []));
-  }, []);
 
   const resetToSearch = useCallback(() => {
     setScreen("search"); setReg(null); setBadge(""); setPhotoStatus("none"); setPhotoUrl(null);
@@ -48,7 +42,7 @@ export default function DeskApp({ allowSkipPhoto }) {
   const finishRegisterOnlyPhoto = () => setScreen("register_done");
 
   if (screen === "search") return <SearchScreen deskMode={deskMode} setDeskMode={setDeskMode} onSelect={selectReg} onWalkIn={() => setScreen("walkin")} />;
-  if (screen === "walkin") return <WalkInForm buses={buses} onCancel={() => setScreen("search")} onCreate={createWalkIn} />;
+  if (screen === "walkin") return <WalkInForm onCancel={() => setScreen("search")} onCreate={createWalkIn} />;
   if (screen === "badge") return <BadgeLink reg={reg} onBack={() => setScreen("search")} onNext={handleBadgeNext} />;
   if (screen === "photo") return <PhotoCapture reg={reg} allowSkip={allowSkipPhoto} onBack={() => setScreen("badge")} onNext={finishFullCheckIn} />;
   if (screen === "done") return <Complete reg={reg} badge={badge} photoStatus={photoStatus} photoUrl={photoUrl} onNextGuest={resetToSearch} />;

@@ -5,7 +5,7 @@ import { TopBar, PrimaryButton, Dropdown } from "../shared/UI";
 import { CATEGORY_OPTIONS, PERFORMER_COLOR_OPTIONS, PERFORMER_COLOR_VENUE } from "../../lib/checkpointAccess";
 import { supabase } from "../../lib/supabaseClient";
 
-export default function WalkInForm({ buses, onCancel, onCreate }) {
+export default function WalkInForm({ onCancel, onCreate }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -14,11 +14,8 @@ export default function WalkInForm({ buses, onCancel, onCreate }) {
   const [linkedQuery, setLinkedQuery] = useState("");
   const [linkedResults, setLinkedResults] = useState([]);
   const [linkedPerson, setLinkedPerson] = useState(null);
-  const [assignedBusId, setAssignedBusId] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => { if (buses.length && !assignedBusId) setAssignedBusId(buses[0].id); }, [buses, assignedBusId]);
 
   useEffect(() => {
     if (category !== "accompanying" || linkedQuery.trim().length < 2) { setLinkedResults([]); return; }
@@ -42,7 +39,9 @@ export default function WalkInForm({ buses, onCancel, onCreate }) {
           category,
           performer_color: category === "performer" ? performerColor : null,
           linked_registration_id: category === "accompanying" ? linkedPerson.id : null,
-          assigned_bus_id: assignedBusId || null,
+          // Bus assignment is deliberately not decided here — that's a
+          // separate logistics decision made later via Admin → Buses →
+          // Roster, not something registration should bundle in.
         })
         .select()
         .single();
@@ -103,10 +102,6 @@ export default function WalkInForm({ buses, onCancel, onCreate }) {
               </>
             )}
           </div>
-        )}
-
-        {buses.length > 0 && (
-          <Field label="Assign to bus"><Dropdown value={assignedBusId} onChange={setAssignedBusId} options={buses.map((b) => ({ value: b.id, label: b.name }))} /></Field>
         )}
 
         {error && <div style={{ color: C.alert, fontSize: 13.5 }}>{error}</div>}
