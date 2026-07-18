@@ -51,10 +51,22 @@ export default function EventScanMode() {
 
   useEffect(() => { loadNamedList(); loadStats(); }, [loadNamedList, loadStats]);
 
+  // Poll independently of local scans — otherwise this device's counter
+  // only ever reflects its own activity, and looks wrong the moment a
+  // second device scans the same checkpoint at the same time.
+  useEffect(() => {
+    const interval = setInterval(loadStats, 10000);
+    return () => clearInterval(interval);
+  }, [loadStats]);
+
   const record = async (person, allowed, method, reason = null) => {
     // scanned_by/scanned_at are force-set server-side by the trigger.
     await supabase.from("event_scan_log").insert({ checkpoint_id: cp.id, registration_id: person.id, allowed, method, reason });
-    setStats((s) => ({ scanned: s.scanned + 1, allowed: s.allowed + (allowed ? 1 : 0), denied: s.denied + (allowed ? 0 : 1) }));
+    // Re-query the real count rather than incrementing local state —
+    // a local-only increment would only ever reflect this one device's
+    // scans, understating the true total the moment a second device
+    // scans the same checkpoint at the same time.
+    await loadStats();
   };
 
   const notAllowedDetail = (person) => {

@@ -156,6 +156,7 @@ function BusDetailSheet({ bus, onClose }) {
   const [roster, setRoster] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     supabase.from("trip_legs").select("id, label").order("leg_date").then(({ data }) => {
@@ -168,7 +169,9 @@ function BusDetailSheet({ bus, onClose }) {
   const refetch = useCallback(async () => {
     if (!legId) return;
     setLoading(true);
-    const { data } = await supabase.from("bus_trip_status").select("registration_id, bus_id, status, reason").eq("trip_leg_id", legId);
+    const { data, error } = await supabase.from("bus_trip_status").select("registration_id, bus_id, status, reason").eq("trip_leg_id", legId);
+    if (error) { setError(error.message); setLoading(false); return; }
+    setError("");
     setStatuses(data || []);
     setLoading(false);
   }, [legId]);
@@ -190,6 +193,7 @@ function BusDetailSheet({ bus, onClose }) {
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-3 flex flex-col gap-2" style={{ background: C.inkSoft }}>
         {loading && <div style={{ color: C.ink40, fontSize: 13.5 }}>Loading…</div>}
+        {error && <div style={{ color: C.alert, fontSize: 13.5 }}>Couldn't load trip status: {error}</div>}
         {!loading && roster.map((p) => {
           const rec = statusFor(p.id);
           let pill = { text: "UNACCOUNTED", color: C.alert };
