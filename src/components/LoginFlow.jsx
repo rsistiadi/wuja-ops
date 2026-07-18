@@ -1,36 +1,33 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Search, ArrowRight, Check, AlertTriangle, X, ShieldCheck, Camera, RotateCcw, SwitchCamera } from "lucide-react";
-import { C, CATEGORY_META } from "../lib/tokens";
+import { Search, ArrowRight, Check, AlertTriangle, X, ShieldCheck, Camera, RotateCcw, SwitchCamera, LogIn, UserPlus } from "lucide-react";
+import { C } from "../lib/tokens";
 import { TopBar, PrimaryButton, GhostButton, Dropdown, useDebouncedValue } from "./shared/UI";
 import { startCamera, stopCamera, captureNormalizedPhoto } from "../lib/photo";
 import { CATEGORY_OPTIONS, PERFORMER_COLOR_OPTIONS } from "../lib/checkpointAccess";
 
 export default function LoginFlow({ auth }) {
-  const [stage, setStage] = useState("select"); // select | set-pin | category | photo | enter-pin | pending | deactivated
+  // landing | login-search | enter-pin | signup-search | confirm-match |
+  // category | photo | pending | deactivated
+  const [stage, setStage] = useState("landing");
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 250);
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
-  const [selected, setSelected] = useState(null); // {id, full_name, status} | null (brand new name)
+  const [selected, setSelected] = useState(null); // existing login account being logged into
+  const [matchedReg, setMatchedReg] = useState(null); // {id, full_name} from signup_eligible_directory
   const [typedName, setTypedName] = useState("");
   const [pin1, setPin1] = useState("");
   const [pin2, setPin2] = useState("");
-  // Admin/Super Admin are never self-requestable — every signup
-  // requests "crew"; an Admin decides the real access level, either
-  // at approval or by changing it afterward.
-  const reqRole = "crew";
   const [category, setCategory] = useState("committee");
   const [performerColor, setPerformerColor] = useState("yellow");
   const [pinInput, setPinInput] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Photo step — mandatory for crew/admin/superadmin, since this photo
-  // becomes their actual badge photo under the unified badge system,
-  // not a separate optional courtesy photo.
+  // Photo step — mandatory, becomes the actual badge photo.
   const videoRef = useRef(null);
   const streamRef = useRef(null);
-  const [facingMode, setFacingMode] = useState("user"); // front camera default here — this is a self-portrait, unlike the attendee-facing Desk capture
+  const [facingMode, setFacingMode] = useState("user");
   const [cameraError, setCameraError] = useState("");
   const [photoBlob, setPhotoBlob] = useState(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState(null);
@@ -39,10 +36,11 @@ export default function LoginFlow({ auth }) {
     let cancelled = false;
     if (debouncedQuery.trim().length < 2) { setResults([]); return; }
     setSearching(true);
-    auth.searchNames(debouncedQuery).then((r) => { if (!cancelled) { setResults(r); setSearching(false); } })
+    const searchFn = stage === "login-search" ? auth.searchNames : auth.searchEligible;
+    searchFn(debouncedQuery).then((r) => { if (!cancelled) { setResults(r); setSearching(false); } })
       .catch((e) => { if (!cancelled) { setError(e.message); setSearching(false); } });
     return () => { cancelled = true; };
-  }, [debouncedQuery, auth]);
+  }, [debouncedQuery, stage, auth]);
 
   useEffect(() => {
     if (stage !== "photo" || photoBlob) return;
@@ -56,17 +54,20 @@ export default function LoginFlow({ auth }) {
     return () => { cancelled = true; stopCamera(streamRef.current); streamRef.current = null; };
   }, [stage, photoBlob, facingMode]);
 
-  const pickExisting = (rec) => {
+  const startLogin = () => { setStage("login-search"); setQuery(""); setResults([]); setError(""); };
+  const startSignup = () => { setStage("signup-search"); setQuery(""); setResults([]); setError(""); };
+
+  const pickLoginAccount = (rec) => {
     setSelected(rec); setError("");
     if (rec.status === "pending") setStage("pending");
     else if (rec.status === "deactivated") setStage("deactivated");
     else setStage("enter-pin");
   };
 
-  const pickNew = (name) => {
-    setSelected(null); setTypedName(name); setError(""); setPin1(""); setPin2("");
-    setStage("set-pin");
-  };
+  const pickMatch = (rec) => { setMatchedReg(rec); setTypedName(rec.full_name); setError(""); setStage("confirm-match"); };
+  const notFoundFallback = () => { setMatchedReg(null); setTypedName(query.trim()); setError(""); setStage("category"); };
+
+  const confirmMatchAndSetPin = () => { setError(""); setStage("set-pin-inline"); };
 
   const submitPin = () => {
     if (pin1.length < 6) { setError("PIN must be at least 6 digits."); return; }
@@ -74,7 +75,7 @@ export default function LoginFlow({ auth }) {
     if (/^(\d)\1+$/.test(pin1) || "0123456789".includes(pin1) || "9876543210".includes(pin1)) {
       setError("That PIN is too predictable — avoid repeated or sequential digits."); return;
     }
-    setError(""); setStage("category");
+    setError(""); setStage("photo");
   };
 
   const capturePhoto = async () => {
@@ -82,9 +83,7 @@ export default function LoginFlow({ auth }) {
       const blob = await captureNormalizedPhoto(videoRef.current, facingMode);
       setPhotoBlob(blob);
       setPhotoPreviewUrl(URL.createObjectURL(blob));
-    } catch (e) {
-      setError(e.message);
-    }
+    } catch (e) { setError(e.message); }
   };
   const retakePhoto = () => { setPhotoBlob(null); setPhotoPreviewUrl(null); setError(""); };
   const switchCamera = () => setFacingMode((f) => (f === "environment" ? "user" : "environment"));
@@ -92,96 +91,128 @@ export default function LoginFlow({ auth }) {
   const finishSignup = async () => {
     setBusy(true); setError("");
     try {
-      await auth.requestSignup({ fullName: typedName, requestedRole: reqRole, pin: pin1, category, performerColor: category === "performer" ? performerColor : null, photoBlob });
+      await auth.requestSignup({
+        fullName: typedName, requestedRole: "crew", pin: pin1,
+        registrationId: matchedReg?.id || null,
+        category: matchedReg ? undefined : category,
+        performerColor: !matchedReg && category === "performer" ? performerColor : null,
+        photoBlob,
+      });
       setStage("pending");
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setBusy(false);
-    }
+    } catch (e) { setError(e.message); } finally { setBusy(false); }
   };
 
   const submitLogin = async () => {
     setBusy(true); setError("");
-    try {
-      await auth.signIn(selected.id, pinInput);
-      // onAuthStateChange in useAuth picks up the new session automatically
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setBusy(false);
-    }
+    try { await auth.signIn(selected.id, pinInput); }
+    catch (e) { setError(e.message); } finally { setBusy(false); }
   };
 
   return (
     <div className="flex-1 flex flex-col">
-      <TopBar title="Wuja Ops" subtitle="Crew Login" accent={C.gold} />
+      <TopBar title="Wuja Ops" subtitle="Crew Access" accent={C.gold} />
       <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4" style={{ background: C.inkSoft }}>
 
-        {stage === "select" && (
+        {stage === "landing" && (
           <>
-            <div style={{ color: C.ink60, fontSize: 13.5 }}>To log in, please search your name.</div>
+            <div style={{ color: C.ink60, fontSize: 13.5, textAlign: "center", marginTop: 20 }}>Committee &amp; Volunteers only</div>
+            <button onClick={startLogin} className="flex items-center justify-center gap-2.5 rounded-xl" style={{ background: C.gold, color: C.ink, fontWeight: 700, fontSize: 15.5, padding: "16px 0", border: "none", cursor: "pointer", marginTop: 8 }}>
+              <LogIn size={19} /> I'm already registered — Log in
+            </button>
+            <button onClick={startSignup} className="flex items-center justify-center gap-2.5 rounded-xl" style={{ background: C.ink, border: `1.5px dashed ${C.gold}88`, color: C.gold, fontWeight: 700, fontSize: 14.5, padding: "15px 0", cursor: "pointer" }}>
+              <UserPlus size={17} /> First time — Sign up
+            </button>
+          </>
+        )}
+
+        {stage === "login-search" && (
+          <>
+            <button onClick={() => setStage("landing")} style={{ color: C.ink40, fontSize: 12.5, alignSelf: "flex-start", background: "none", border: "none", cursor: "pointer" }}>← Back</button>
+            <div style={{ color: C.ink60, fontSize: 13.5 }}>Search your name to log in.</div>
             <div className="flex items-center gap-2 rounded-xl px-3" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
               <Search size={16} color={C.ink60} />
               <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your name…"
                 className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 15.5, padding: "11px 4px", border: "none" }} />
             </div>
-            {debouncedQuery.trim().length < 2 && (
-              <div className="flex flex-col items-center mt-10 gap-2">
-                <Search size={26} color={C.ink40} />
-                <div style={{ color: C.ink40, fontSize: 13.5, maxWidth: 220, textAlign: "center" }}>Start typing to find your name in the committee list.</div>
+            {debouncedQuery.trim().length >= 2 && !searching && (
+              <div className="flex flex-col gap-2">
+                {results.length === 0 && <div style={{ color: C.ink40, fontSize: 13.5, textAlign: "center", marginTop: 10 }}>No account found. Not registered yet? Go back and choose "Sign up."</div>}
+                {results.map((r) => (
+                  <button key={r.id} onClick={() => pickLoginAccount(r)} className="rounded-xl px-4 py-3 text-left" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 14.5, fontWeight: 600, cursor: "pointer" }}>{r.full_name}</button>
+                ))}
               </div>
             )}
+          </>
+        )}
+
+        {stage === "signup-search" && (
+          <>
+            <button onClick={() => setStage("landing")} style={{ color: C.ink40, fontSize: 12.5, alignSelf: "flex-start", background: "none", border: "none", cursor: "pointer" }}>← Back</button>
+            <div style={{ color: C.ink60, fontSize: 13.5 }}>Search your name from the Committee/Volunteer list.</div>
+            <div className="flex items-center gap-2 rounded-xl px-3" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
+              <Search size={16} color={C.ink60} />
+              <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your name…"
+                className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 15.5, padding: "11px 4px", border: "none" }} />
+            </div>
             {debouncedQuery.trim().length >= 2 && !searching && (
               <div className="flex flex-col gap-2">
                 {results.map((r) => (
-                  <button key={r.id} onClick={() => pickExisting(r)} className="rounded-xl px-4 py-3 text-left" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>{r.full_name}</button>
+                  <button key={r.id} onClick={() => pickMatch(r)} className="rounded-xl px-4 py-3 text-left" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 14.5, fontWeight: 600, cursor: "pointer" }}>{r.full_name}</button>
                 ))}
-                <button onClick={() => pickNew(debouncedQuery.trim())} className="rounded-xl px-4 py-3 text-left" style={{ background: "transparent", border: `1px dashed ${C.gold}66`, color: C.gold, fontSize: 14.5, fontWeight: 700 }}>
-                  + Register as "{debouncedQuery.trim()}"
+                <button onClick={notFoundFallback} className="rounded-xl px-4 py-3 text-left" style={{ background: "transparent", border: `1px dashed ${C.gold}66`, color: C.gold, fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>
+                  Not finding your name? Register as new
                 </button>
               </div>
             )}
           </>
         )}
 
-        {stage === "set-pin" && (
+        {stage === "confirm-match" && matchedReg && (
           <>
-            <button onClick={() => setStage("select")} style={{ color: C.ink40, fontSize: 12.5, alignSelf: "flex-start", background: "none", border: "none", cursor: "pointer" }}>← Change name</button>
-            <div className="rounded-xl p-4" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
-              <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600 }}>FIRST TIME</div>
-              <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 18.5, fontWeight: 600, marginTop: 4 }}>{typedName}</div>
+            <button onClick={() => setStage("signup-search")} style={{ color: C.ink40, fontSize: 12.5, alignSelf: "flex-start", background: "none", border: "none", cursor: "pointer" }}>← Change name</button>
+            <div className="rounded-xl p-5 flex flex-col items-center" style={{ background: C.ink, border: `1px solid ${C.gold}` }}>
+              <Check size={22} color={C.ok} />
+              <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 18.5, fontWeight: 600, marginTop: 10 }}>{matchedReg.full_name}</div>
+              <div style={{ color: C.ok, fontSize: 12.5, marginTop: 4 }}>Found on the roster</div>
             </div>
+            <PrimaryButton icon={ArrowRight} onClick={confirmMatchAndSetPin}>Yes, that's me — Continue</PrimaryButton>
+          </>
+        )}
+
+        {(stage === "set-pin-inline" || stage === "category") && (
+          <>
+            <button onClick={() => setStage(matchedReg ? "confirm-match" : "signup-search")} style={{ color: C.ink40, fontSize: 12.5, alignSelf: "flex-start", background: "none", border: "none", cursor: "pointer" }}>← Back</button>
+            {stage === "category" && (
+              <div className="rounded-xl p-4" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
+                <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600 }}>NOT FOUND ON ROSTER</div>
+                <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 17, fontWeight: 600, marginTop: 4 }}>{typedName}</div>
+              </div>
+            )}
             <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600 }}>Choose a PIN (6–8 digits)</div>
             <input autoFocus type="tel" value={pin1} onChange={(e) => setPin1(e.target.value.replace(/\D/g, "").slice(0, 8))} placeholder="Enter PIN"
               className="w-full rounded-xl outline-none text-center" style={{ fontFamily: "JetBrains Mono, monospace", background: C.ink, border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 23, letterSpacing: 8, padding: 14 }} />
             <input type="tel" value={pin2} onChange={(e) => setPin2(e.target.value.replace(/\D/g, "").slice(0, 8))} placeholder="Confirm PIN"
               className="w-full rounded-xl outline-none text-center" style={{ fontFamily: "JetBrains Mono, monospace", background: C.ink, border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 23, letterSpacing: 8, padding: 14 }} />
-            {error && <div style={{ color: C.alert, fontSize: 13.5 }}>{error}</div>}
-            <PrimaryButton icon={ArrowRight} disabled={pin1.length < 6} onClick={submitPin}>Continue</PrimaryButton>
-          </>
-        )}
-
-        {stage === "category" && (
-          <>
-            <button onClick={() => setStage("set-pin")} style={{ color: C.ink40, fontSize: 12.5, alignSelf: "flex-start", background: "none", border: "none", cursor: "pointer" }}>← Back</button>
-            <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600 }}>What's your badge category?</div>
-            <div style={{ color: C.ink40, fontSize: 12.5 }}>Everyone using Wuja Ops also gets a physical congress badge — this determines which venues you can access.</div>
-            <Dropdown value={category} onChange={setCategory} options={CATEGORY_OPTIONS} />
-            {category === "performer" && (
+            {stage === "category" && (
               <>
-                <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginTop: 4 }}>Performer color group</div>
-                <Dropdown value={performerColor} onChange={setPerformerColor} options={PERFORMER_COLOR_OPTIONS} />
+                <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginTop: 4 }}>Badge category</div>
+                <Dropdown value={category} onChange={setCategory} options={CATEGORY_OPTIONS} />
+                {category === "performer" && (
+                  <>
+                    <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600 }}>Performer color group</div>
+                    <Dropdown value={performerColor} onChange={setPerformerColor} options={PERFORMER_COLOR_OPTIONS} />
+                  </>
+                )}
               </>
             )}
-            <PrimaryButton icon={ArrowRight} onClick={() => setStage("photo")}>Continue to photo</PrimaryButton>
+            {error && <div style={{ color: C.alert, fontSize: 13.5 }}>{error}</div>}
+            <PrimaryButton icon={ArrowRight} disabled={pin1.length < 6} onClick={submitPin}>Continue to photo</PrimaryButton>
           </>
         )}
 
         {stage === "photo" && (
           <>
-            <button onClick={() => setStage("category")} style={{ color: C.ink40, fontSize: 12.5, alignSelf: "flex-start", background: "none", border: "none", cursor: "pointer" }}>← Back</button>
-            <div style={{ color: C.ink60, fontSize: 13.5 }}>A photo is required — this becomes your badge photo, and helps Admins confirm who they're approving.</div>
+            <div style={{ color: C.ink60, fontSize: 13.5 }}>A photo is required — this becomes your badge photo.</div>
             <div className="rounded-2xl relative overflow-hidden mx-auto" style={{ background: "#0B1524", border: `1px solid ${C.inkLine}`, width: "100%", maxWidth: 320, aspectRatio: "1 / 1" }}>
               {!photoBlob ? (
                 cameraError ? (
@@ -216,9 +247,9 @@ export default function LoginFlow({ auth }) {
 
         {stage === "enter-pin" && (
           <>
-            <button onClick={() => setStage("select")} style={{ color: C.ink40, fontSize: 12.5, alignSelf: "flex-start", background: "none", border: "none", cursor: "pointer" }}>← Change name</button>
+            <button onClick={() => setStage("login-search")} style={{ color: C.ink40, fontSize: 12.5, alignSelf: "flex-start", background: "none", border: "none", cursor: "pointer" }}>← Change name</button>
             <div className="rounded-xl p-4" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
-              <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 18.5, fontWeight: 600 }}>{selected.full_name}</div>
+              <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 17, fontWeight: 600 }}>{selected.full_name}</div>
             </div>
             <input autoFocus type="tel" value={pinInput} onChange={(e) => { setPinInput(e.target.value.replace(/\D/g, "").slice(0, 8)); setError(""); }} placeholder="Enter PIN"
               className="w-full rounded-xl outline-none text-center" style={{ fontFamily: "JetBrains Mono, monospace", background: C.ink, border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 23, letterSpacing: 8, padding: 14 }} />
@@ -231,18 +262,18 @@ export default function LoginFlow({ auth }) {
         {stage === "pending" && (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 mt-10">
             <div className="flex items-center justify-center rounded-full" style={{ width: 64, height: 64, background: `${C.gold}22`, border: `1.5px solid ${C.gold}` }}><AlertTriangle size={28} color={C.gold} /></div>
-            <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 18.5, fontWeight: 600 }}>Waiting for approval</div>
+            <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 17, fontWeight: 600 }}>Waiting for approval</div>
             <div style={{ color: C.ink60, fontSize: 13.5, maxWidth: 260, textAlign: "center" }}>Your request is pending review by an Admin. Check back once approved.</div>
-            <button onClick={() => setStage("select")} style={{ color: C.gold, fontSize: 13.5, fontWeight: 700, background: "none", border: "none", cursor: "pointer", marginTop: 8 }}>← Back to name select</button>
+            <button onClick={() => setStage("landing")} style={{ color: C.gold, fontSize: 12.5, fontWeight: 700, background: "none", border: "none", cursor: "pointer", marginTop: 8 }}>← Back to start</button>
           </div>
         )}
 
         {stage === "deactivated" && (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 mt-10">
             <div className="flex items-center justify-center rounded-full" style={{ width: 64, height: 64, background: `${C.alert}22`, border: `1.5px solid ${C.alert}` }}><X size={28} color={C.alert} /></div>
-            <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 18.5, fontWeight: 600 }}>Account deactivated</div>
+            <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 17, fontWeight: 600 }}>Account deactivated</div>
             <div style={{ color: C.ink60, fontSize: 13.5, maxWidth: 260, textAlign: "center" }}>Contact an Admin if you believe this is a mistake.</div>
-            <button onClick={() => setStage("select")} style={{ color: C.gold, fontSize: 13.5, fontWeight: 700, background: "none", border: "none", cursor: "pointer", marginTop: 8 }}>← Back to name select</button>
+            <button onClick={() => setStage("landing")} style={{ color: C.gold, fontSize: 12.5, fontWeight: 700, background: "none", border: "none", cursor: "pointer", marginTop: 8 }}>← Back to start</button>
           </div>
         )}
       </div>

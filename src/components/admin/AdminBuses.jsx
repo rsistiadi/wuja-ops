@@ -1,28 +1,32 @@
 import React, { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, Check, Search } from "lucide-react";
 import { C } from "../../lib/tokens";
-import { TopBar, PrimaryButton, PersonTag } from "../shared/UI";
+import { TopBar, PrimaryButton, PersonTag, Dropdown } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
 
 export default function AdminBuses() {
   const [buses, setBuses] = useState([]);
   const [legs, setLegs] = useState([]);
   const [rosterCounts, setRosterCounts] = useState({});
+  const [activeCrew, setActiveCrew] = useState([]);
   const [screen, setScreen] = useState("list"); // list | busForm | legForm | roster
   const [editingBus, setEditingBus] = useState(null);
   const [editingLeg, setEditingLeg] = useState(null);
   const [rosterBus, setRosterBus] = useState(null);
   const [busName, setBusName] = useState("");
+  const [assignedLoId, setAssignedLoId] = useState("");
   const [legLabel, setLegLabel] = useState("");
   const [saving, setSaving] = useState(false);
 
   const refetch = async () => {
-    const [busesRes, legsRes] = await Promise.all([
-      supabase.from("buses").select("id, name").order("name"),
+    const [busesRes, legsRes, crewRes] = await Promise.all([
+      supabase.from("buses").select("id, name, assigned_lo_crew_id").order("name"),
       supabase.from("trip_legs").select("id, label").order("leg_date"),
+      supabase.from("crew").select("id, full_name").eq("status", "active"),
     ]);
     setBuses(busesRes.data || []);
     setLegs(legsRes.data || []);
+    setActiveCrew(crewRes.data || []);
     const counts = {};
     for (const b of busesRes.data || []) {
       const { count } = await supabase.from("registrations").select("id", { count: "exact", head: true }).eq("assigned_bus_id", b.id);
@@ -35,9 +39,10 @@ export default function AdminBuses() {
   const saveBus = async () => {
     if (!busName.trim()) return;
     setSaving(true);
-    if (editingBus) await supabase.from("buses").update({ name: busName.trim() }).eq("id", editingBus.id);
-    else await supabase.from("buses").insert({ name: busName.trim() });
-    setSaving(false); setScreen("list"); setEditingBus(null); setBusName(""); refetch();
+    const payload = { name: busName.trim(), assigned_lo_crew_id: assignedLoId || null };
+    if (editingBus) await supabase.from("buses").update(payload).eq("id", editingBus.id);
+    else await supabase.from("buses").insert(payload);
+    setSaving(false); setScreen("list"); setEditingBus(null); setBusName(""); setAssignedLoId(""); refetch();
   };
   const deleteBus = async () => { setSaving(true); await supabase.from("buses").delete().eq("id", editingBus.id); setSaving(false); setScreen("list"); setEditingBus(null); refetch(); };
 
@@ -56,9 +61,15 @@ export default function AdminBuses() {
     return (
       <div className="flex-1 flex flex-col">
         <TopBar title={editingBus ? "Edit Bus" : "New Bus"} onBack={() => { setScreen("list"); setEditingBus(null); }} accent={C.gold} />
-        <div className="flex-1 px-5 py-5" style={{ background: C.inkSoft }}>
-          <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginBottom: 6 }}>Bus / vehicle name</div>
-          <input value={busName} onChange={(e) => setBusName(e.target.value)} placeholder="e.g. Bus C" style={inputStyle} />
+        <div className="flex-1 px-5 py-5 flex flex-col gap-4" style={{ background: C.inkSoft }}>
+          <div>
+            <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginBottom: 6 }}>Bus / vehicle name</div>
+            <input value={busName} onChange={(e) => setBusName(e.target.value)} placeholder="e.g. Bus C" style={inputStyle} />
+          </div>
+          <div>
+            <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginBottom: 6 }}>Liaison Officer in charge</div>
+            <Dropdown value={assignedLoId} onChange={setAssignedLoId} options={[{ value: "", label: "— unassigned —" }, ...activeCrew.map((c) => ({ value: c.id, label: c.full_name }))]} />
+          </div>
         </div>
         <div className="px-5 pb-7 pt-3 flex flex-col gap-2.5" style={{ background: C.inkSoft }}>
           <PrimaryButton icon={Check} disabled={!busName.trim() || saving} onClick={saveBus}>{editingBus ? "Save changes" : "Create bus"}</PrimaryButton>
@@ -90,14 +101,14 @@ export default function AdminBuses() {
         <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700 }}>BUSES / VEHICLES</div>
         {buses.map((b) => (
           <div key={b.id} className="rounded-xl px-4 py-3 flex items-center justify-between" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
-            <div><div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>{b.name}</div><div style={{ color: C.ink40, fontSize: 12.5, marginTop: 4 }}>{rosterCounts[b.id] ?? 0} assigned</div></div>
+            <div><div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>{b.name}</div><div style={{ color: C.ink40, fontSize: 12.5, marginTop: 4 }}>{rosterCounts[b.id] ?? 0} assigned · LO: {activeCrew.find((c) => c.id === b.assigned_lo_crew_id)?.full_name || "unassigned"}</div></div>
             <div className="flex items-center gap-2">
               <button onClick={() => { setRosterBus(b); setScreen("roster"); }} style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}`, color: C.gold, fontSize: 12.5, fontWeight: 700, padding: "7px 10px", borderRadius: 8, cursor: "pointer" }}>Roster</button>
-              <button onClick={() => { setEditingBus(b); setBusName(b.name); setScreen("busForm"); }} style={{ background: "none", border: "none", cursor: "pointer" }}><Pencil size={15} color={C.ink40} /></button>
+              <button onClick={() => { setEditingBus(b); setBusName(b.name); setAssignedLoId(b.assigned_lo_crew_id || ""); setScreen("busForm"); }} style={{ background: "none", border: "none", cursor: "pointer" }}><Pencil size={15} color={C.ink40} /></button>
             </div>
           </div>
         ))}
-        <button onClick={() => { setEditingBus(null); setBusName(""); setScreen("busForm"); }} className="flex items-center justify-center gap-2 rounded-xl" style={{ background: C.ink, border: `1px dashed ${C.gold}66`, color: C.gold, fontSize: 13.5, fontWeight: 700, padding: "10px 0", cursor: "pointer" }}><Plus size={14} /> New bus</button>
+        <button onClick={() => { setEditingBus(null); setBusName(""); setAssignedLoId(""); setScreen("busForm"); }} className="flex items-center justify-center gap-2 rounded-xl" style={{ background: C.ink, border: `1px dashed ${C.gold}66`, color: C.gold, fontSize: 13.5, fontWeight: 700, padding: "10px 0", cursor: "pointer" }}><Plus size={14} /> New bus</button>
       </div>
       <div className="px-5 pt-5 pb-6 flex flex-col gap-2">
         <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700 }}>TRIPS / LEGS</div>

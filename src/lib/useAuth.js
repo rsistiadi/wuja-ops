@@ -11,7 +11,7 @@ export function useAuth() {
   const loadOwnCrewRow = useCallback(async (userId) => {
     const { data, error } = await supabase
       .from("crew")
-      .select("id, full_name, approved_role, status")
+      .select("id, full_name, approved_role, status, registration_id")
       .eq("auth_user_id", userId)
       .single();
     if (error) {
@@ -50,6 +50,23 @@ export function useAuth() {
     return data;
   }, []);
 
+  // Sign-up search: only Committee/Volunteer badge holders (the
+  // pre-uploaded roster) are searchable here — see
+  // signup_eligible_directory. Deliberately separate from searchNames
+  // (which finds existing crew LOGIN accounts) since these serve two
+  // different steps: finding your badge to sign up vs. finding your
+  // account to log in.
+  const searchEligible = useCallback(async (query) => {
+    if (query.trim().length < 2) return [];
+    const { data, error } = await supabase
+      .from("signup_eligible_directory")
+      .select("id, full_name")
+      .ilike("full_name", `%${query.trim()}%`)
+      .limit(15);
+    if (error) throw error;
+    return data;
+  }, []);
+
   // --- Log in an existing active crew member: PIN IS their Auth password ---
   const signIn = useCallback(async (crewId, pin) => {
     const email = `${crewId}@crew.wuja.internal`;
@@ -65,17 +82,17 @@ export function useAuth() {
   // a direct table insert, so validation (weak-PIN check, duplicate
   // name check) happens server-side and can't be bypassed by a
   // tampered client. ---
-  const requestSignup = useCallback(async ({ fullName, requestedRole, pin, category, performerColor, photoBlob }) => {
+  const requestSignup = useCallback(async ({ fullName, requestedRole, pin, registrationId, category, performerColor, photoBlob }) => {
     const photo_base64 = await new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result); // data URL — server strips the prefix
+      reader.onload = () => resolve(reader.result);
       reader.onerror = reject;
       reader.readAsDataURL(photoBlob);
     });
     const res = await fetch(`${FUNCTIONS_URL}/crew-self-register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ full_name: fullName, requested_role: requestedRole, pin, category, performer_color: performerColor, photo_base64 }),
+      body: JSON.stringify({ full_name: fullName, requested_role: requestedRole, pin, registration_id: registrationId || null, category, performer_color: performerColor, photo_base64 }),
     });
     const body = await res.json();
     if (!res.ok) throw new Error(body.error || "Signup failed");
@@ -99,5 +116,5 @@ export function useAuth() {
     return body;
   }, []);
 
-  return { session, crew, loading, searchNames, signIn, signOut, requestSignup, callCrewAdmin };
+  return { session, crew, loading, searchNames, searchEligible, signIn, signOut, requestSignup, callCrewAdmin };
 }

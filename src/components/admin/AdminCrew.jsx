@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { AlertTriangle, UserCircle2, RefreshCw, X } from "lucide-react";
+import { AlertTriangle, UserCircle2, RefreshCw, X, Check } from "lucide-react";
 import { C, CATEGORY_META, categoryLabel } from "../../lib/tokens";
 import { Dropdown, PersonAvatar, PersonTag, StatusPill } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
@@ -18,11 +18,13 @@ export default function AdminCrew({ callCrewAdmin }) {
   const [selected, setSelected] = useState(null); // crew member being viewed in detail
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [justRefreshed, setJustRefreshed] = useState(false);
 
   const refetch = async () => {
     const { data, error } = await supabase
       .from("crew")
-      .select("id, full_name, auth_user_id, requested_role, approved_role, status, created_at, registration_id")
+      .select("id, full_name, auth_user_id, requested_role, approved_role, status, created_at, registration_id, is_new_registration")
       .order("created_at");
     if (error) { setError(`Couldn't load crew list: ${error.message}`); return; }
     setError("");
@@ -104,14 +106,23 @@ export default function AdminCrew({ callCrewAdmin }) {
       <div>
         <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
           <span style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700 }}>PENDING APPROVAL · {pending.length}</span>
-          <button onClick={refetch} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, color: C.gold, fontSize: 12.5, fontWeight: 700 }}><RefreshCw size={11} /> Refresh</button>
+          <button onClick={async () => { setRefreshing(true); await refetch(); setRefreshing(false); setTimeout(() => setJustRefreshed(false), 1500); setJustRefreshed(true); }} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, color: justRefreshed ? C.ok : C.gold, fontSize: 12.5, fontWeight: 700 }}>
+            <RefreshCw size={11} style={{ animation: refreshing ? "spin 0.6s linear infinite" : "none" }} /> {justRefreshed ? "Refreshed ✓" : "Refresh"}
+          </button>
         </div>
         {pending.length === 0 && <div style={{ color: C.ink40, fontSize: 13.5 }}>None.</div>}
         {pending.map((c) => (
           <div key={c.id} className="rounded-xl p-3.5 mb-2" style={{ background: C.ink, border: `1px solid ${C.gold}66` }}>
             <button onClick={() => setSelected(c)} className="flex items-center gap-3 w-full text-left" style={{ background: "none", border: "none", cursor: "pointer" }}>
               <CrewAvatar c={c} />
-              <div><div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 700 }}>{c.full_name}</div><div style={{ color: C.ink60, fontSize: 12.5, marginTop: 2 }}>Requested: {ROLE_META[c.requested_role]?.label}</div></div>
+              <div>
+                <div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 700 }}>{c.full_name}</div>
+                {c.is_new_registration ? (
+                  <div className="inline-flex items-center gap-1 rounded-full mt-1" style={{ background: `${C.alert}22`, color: C.alert, fontSize: 11, fontWeight: 700, padding: "2.5px 8px" }}><AlertTriangle size={10} /> NOT ON ROSTER — review carefully</div>
+                ) : (
+                  <div className="inline-flex items-center gap-1 rounded-full mt-1" style={{ background: `${C.ok}22`, color: C.ok, fontSize: 11, fontWeight: 700, padding: "2.5px 8px" }}><Check size={10} /> Matched to roster</div>
+                )}
+              </div>
             </button>
             <div style={{ marginTop: 10 }} />
             <Dropdown value={roleDraft[c.id] || c.requested_role} onChange={(v) => setRoleDraft((prev) => ({ ...prev, [c.id]: v }))} options={ROLE_OPTIONS} />

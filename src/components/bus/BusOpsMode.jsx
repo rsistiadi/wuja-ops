@@ -23,7 +23,7 @@ export default function BusOpsMode() {
 
   useEffect(() => {
     Promise.all([
-      supabase.from("buses").select("id, name").order("name"),
+      supabase.from("buses").select("id, name, assigned_lo_crew_id, crew:assigned_lo_crew_id(full_name)").order("name"),
       supabase.from("trip_legs").select("id, label").order("leg_date"),
     ]).then(([busesRes, legsRes]) => {
       setBuses(busesRes.data || []);
@@ -114,7 +114,7 @@ export default function BusOpsMode() {
 
   return (
     <div className="flex-1 flex flex-col">
-      <TopBar title="Bus Trip" subtitle={`${bus.name} · ${leg.label}`} accent={C.gold} />
+      <TopBar title="Bus Trip" subtitle={`${bus.name} · ${leg.label}${bus.crew?.full_name ? " · LO: " + bus.crew.full_name : ""}`} accent={C.gold} />
       <div className="px-5 pb-3 flex flex-col gap-2" style={{ background: C.ink }}>
         <div className="grid grid-cols-2 gap-2">
           <Dropdown value={busId} onChange={setBusId} options={buses.map((b) => ({ value: b.id, label: b.name }))} />

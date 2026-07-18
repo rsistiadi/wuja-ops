@@ -10,6 +10,7 @@ import VerifyMode from "./components/verify/VerifyMode";
 import ReportsScreen from "./components/reports/ReportsScreen";
 import AdminMode from "./components/admin/AdminMode";
 import BottomTabBar from "./components/shared/BottomTabBar";
+import OwnBadgePrompt from "./components/OwnBadgePrompt";
 
 export default function App() {
   const auth = useAuth();
@@ -37,6 +38,8 @@ export default function App() {
             </span>
             <button onClick={auth.signOut} style={{ color: C.alert, fontSize: 12.5, fontWeight: 700, background: "none", border: "none", cursor: "pointer" }}>Log out</button>
           </div>
+
+          <OwnBadgePrompt registrationId={auth.crew.registration_id} />
 
           <div className="flex-1 flex flex-col overflow-hidden" style={{ paddingBottom: visibleTabs.length > 1 ? "calc(60px + env(safe-area-inset-bottom))" : 0 }}>
             {mode === "desk" && <DeskApp allowSkipPhoto={true} />}
