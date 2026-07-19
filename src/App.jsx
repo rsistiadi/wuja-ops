@@ -45,7 +45,7 @@ export default function App() {
             {mode === "desk" && <DeskApp allowSkipPhoto={true} />}
             {mode === "bus" && <BusOpsMode />}
             {mode === "scan" && <EventScanMode />}
-            {mode === "verify" && <VerifyMode />}
+            {mode === "verify" && <VerifyMode canEdit={auth.crew.approved_role === "admin" || auth.crew.approved_role === "superadmin"} />}
             {mode === "reports" && <ReportsScreen />}
             {mode === "admin" && <AdminMode callCrewAdmin={auth.callCrewAdmin} isSuperAdmin={auth.crew.approved_role === "superadmin"} />}
           </div>

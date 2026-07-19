@@ -1,11 +1,17 @@
 import jsQR from "jsqr";
 
-// Extracts the badge number from the QR's decoded content. Badges are
-// printed as https://<badge-site>/profile/{badge_number} — the badge
-// number is just the last URL path segment. Falls back to treating the
-// raw decoded text as the badge number directly, in case a badge was
-// ever printed with a bare code instead of a full URL.
+// Extracts the badge number from the QR's decoded content. Confirmed
+// against real vendor-printed QR samples: badges are vCards with a
+// dedicated UID field holding the badge code exactly (e.g. "UID:Y893"),
+// so any phone's camera app can "add to contacts" while our own
+// scanner reads the same code via this one specific field — the most
+// reliable place for it to live, not buried in free text. Falls back
+// to URL-style badges (in case that format is ever used instead), then
+// to treating the raw text as the badge number directly as a last resort.
 export function extractBadgeNumber(decodedText) {
+  const uidMatch = decodedText.match(/^UID:(.+)$/m);
+  if (uidMatch) return uidMatch[1].trim();
+
   try {
     const url = new URL(decodedText);
     const parts = url.pathname.split("/").filter(Boolean);

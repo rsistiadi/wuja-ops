@@ -31,13 +31,13 @@ export const CATEGORY_OPTIONS = [
 // color maps to.
 export const PERFORMER_COLOR_OPTIONS = [
   { value: "yellow", label: "Yellow" },
-  { value: "green", label: "Green" },
-  { value: "cyan", label: "Cyan" },
+  { value: "red", label: "Red" },
+  { value: "blue", label: "Blue" },
 ];
 export const PERFORMER_COLOR_VENUE = {
   yellow: "Ganjuran",
-  green: "Sadhar",
-  cyan: "Prambanan",
+  red: "Prambanan",
+  blue: "USD",
 };
 
 export const ACCESS_RULE_OPTIONS = [
