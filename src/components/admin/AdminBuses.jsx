@@ -36,13 +36,20 @@ export default function AdminBuses() {
   };
   useEffect(() => { refetch(); }, []);
 
+  const [busError, setBusError] = useState("");
   const saveBus = async () => {
     if (!busName.trim()) return;
-    setSaving(true);
+    setSaving(true); setBusError("");
     const payload = { name: busName.trim(), assigned_lo_crew_id: assignedLoId || null };
-    if (editingBus) await supabase.from("buses").update(payload).eq("id", editingBus.id);
-    else await supabase.from("buses").insert(payload);
-    setSaving(false); setScreen("list"); setEditingBus(null); setBusName(""); setAssignedLoId(""); refetch();
+    const { error } = editingBus
+      ? await supabase.from("buses").update(payload).eq("id", editingBus.id)
+      : await supabase.from("buses").insert(payload);
+    setSaving(false);
+    if (error) {
+      setBusError(error.code === "23505" ? "That person is already the LO for another bus — refresh and try again." : error.message);
+      return;
+    }
+    setScreen("list"); setEditingBus(null); setBusName(""); setAssignedLoId(""); refetch();
   };
   const deleteBus = async () => { setSaving(true); await supabase.from("buses").delete().eq("id", editingBus.id); setSaving(false); setScreen("list"); setEditingBus(null); refetch(); };
 
@@ -58,6 +65,14 @@ export default function AdminBuses() {
   if (screen === "roster" && rosterBus) return <BusRosterPicker bus={rosterBus} onBack={() => { setScreen("list"); setRosterBus(null); refetch(); }} />;
 
   if (screen === "busForm") {
+    // Same strict-hide principle as the roster picker: someone already
+    // the LO for a different bus shouldn't be selectable here at all —
+    // otherwise a single tap could silently steal them from that bus
+    // with no warning. If they're already this bus's own LO, they
+    // still appear normally (re-confirming them is a no-op).
+    const takenLoIds = new Set(buses.filter((b) => b.id !== editingBus?.id && b.assigned_lo_crew_id).map((b) => b.assigned_lo_crew_id));
+    const availableLos = activeCrew.filter((c) => !takenLoIds.has(c.id));
+
     return (
       <div className="flex-1 flex flex-col">
         <TopBar title={editingBus ? "Edit Bus" : "New Bus"} onBack={() => { setScreen("list"); setEditingBus(null); }} accent={C.gold} />
@@ -68,8 +83,10 @@ export default function AdminBuses() {
           </div>
           <div>
             <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginBottom: 6 }}>Liaison Officer in charge</div>
-            <Dropdown value={assignedLoId} onChange={setAssignedLoId} options={[{ value: "", label: "— unassigned —" }, ...activeCrew.map((c) => ({ value: c.id, label: c.full_name }))]} />
+            <Dropdown value={assignedLoId} onChange={setAssignedLoId} options={[{ value: "", label: "— unassigned —" }, ...availableLos.map((c) => ({ value: c.id, label: c.full_name }))]} />
+            {takenLoIds.size > 0 && <div style={{ color: C.ink40, fontSize: 12, marginTop: 6 }}>{takenLoIds.size} crew member{takenLoIds.size > 1 ? "s" : ""} already assigned to another bus, hidden from this list.</div>}
           </div>
+          {busError && <div style={{ color: C.alert, fontSize: 13.5 }}>{busError}</div>}
         </div>
         <div className="px-5 pb-7 pt-3 flex flex-col gap-2.5" style={{ background: C.inkSoft }}>
           <PrimaryButton icon={Check} disabled={!busName.trim() || saving} onClick={saveBus}>{editingBus ? "Save changes" : "Create bus"}</PrimaryButton>

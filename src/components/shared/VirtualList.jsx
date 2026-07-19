@@ -27,9 +27,21 @@ export default function VirtualList({ items, rowHeight = 64, searchKeys = [], se
     return items.filter((item) => searchKeys.some((k) => String(item[k] || "").toLowerCase().includes(q)));
   }, [items, query, searchKeys]);
 
+  // Typing a search can shrink the list a lot while scrolled far down —
+  // the browser doesn't fire a scroll event just because content got
+  // shorter, so our windowing math would stay stuck computing a window
+  // that no longer exists, showing a blank view until the person
+  // manually scrolls. Snap back to the top on every new search instead.
+  useEffect(() => {
+    setScrollTop(0);
+    if (containerRef.current) containerRef.current.scrollTop = 0;
+  }, [query]);
+
   const overscan = 6;
-  const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
-  const endIndex = Math.min(filtered.length, Math.ceil((scrollTop + viewportHeight) / rowHeight) + overscan);
+  const maxScrollTop = Math.max(0, filtered.length * rowHeight - viewportHeight);
+  const clampedScrollTop = Math.min(scrollTop, maxScrollTop);
+  const startIndex = Math.max(0, Math.floor(clampedScrollTop / rowHeight) - overscan);
+  const endIndex = Math.min(filtered.length, Math.ceil((clampedScrollTop + viewportHeight) / rowHeight) + overscan);
   const visible = filtered.slice(startIndex, endIndex);
 
   return (
