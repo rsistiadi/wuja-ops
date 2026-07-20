@@ -11,7 +11,7 @@ export function useAuth() {
   const loadOwnCrewRow = useCallback(async (userId) => {
     const { data, error } = await supabase
       .from("crew")
-      .select("id, full_name, approved_role, status, registration_id")
+      .select("id, full_name, approved_role, status, registration_id, merch_access")
       .eq("auth_user_id", userId)
       .single();
     if (error) {

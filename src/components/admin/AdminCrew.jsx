@@ -24,7 +24,7 @@ export default function AdminCrew({ callCrewAdmin }) {
   const refetch = async () => {
     const { data, error } = await supabase
       .from("crew")
-      .select("id, full_name, auth_user_id, requested_role, approved_role, status, created_at, registration_id, is_new_registration")
+      .select("id, full_name, auth_user_id, requested_role, approved_role, status, created_at, registration_id, is_new_registration, merch_access")
       .order("created_at");
     if (error) { setError(`Couldn't load crew list: ${error.message}`); return; }
     setError("");
@@ -83,6 +83,11 @@ export default function AdminCrew({ callCrewAdmin }) {
     try { await callCrewAdmin("change_role", { crew_id: c.id, approved_role: newRole }); refetch(); }
     catch (e) { setError(e.message); setRoleDraft((prev) => ({ ...prev, [c.id]: c.approved_role })); }
     finally { setBusy(false); }
+  };
+  const toggleMerchAccess = async (c) => {
+    setBusy(true); setError("");
+    try { await callCrewAdmin("toggle_merch_access", { crew_id: c.id, merch_access: !c.merch_access }); refetch(); }
+    catch (e) { setError(e.message); } finally { setBusy(false); }
   };
   const confirmResetPin = async () => {
     setBusy(true); setError("");
@@ -147,6 +152,10 @@ export default function AdminCrew({ callCrewAdmin }) {
             </div>
             {resetNotice[c.id] && <div style={{ color: C.gold, fontSize: 12.5, marginTop: 8 }}>New PIN: <span style={{ fontFamily: "JetBrains Mono, monospace", fontWeight: 700 }}>{resetNotice[c.id]}</span> — share with them.</div>}
             <div className="mt-2.5"><Dropdown value={roleDraft[c.id] ?? c.approved_role} onChange={(v) => changeRole(c, v)} options={ROLE_OPTIONS} /></div>
+            <button onClick={() => toggleMerchAccess(c)} disabled={busy} className="flex items-center justify-between w-full rounded-lg mt-2" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}`, padding: "8px 12px", cursor: "pointer" }}>
+              <span style={{ color: C.ink60, fontSize: 12.5, fontWeight: 600 }}>Merch operator access</span>
+              <span className="rounded-full" style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 9px", background: c.merch_access ? `${C.gold}22` : `${C.ink40}22`, color: c.merch_access ? C.gold : C.ink40 }}>{c.merch_access ? "GRANTED" : "OFF"}</span>
+            </button>
             <div className="flex gap-2 mt-2.5">
               <button onClick={() => setConfirmAction({ type: "reset", member: c })} disabled={busy} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 12.5, fontWeight: 600, padding: "7px 0", cursor: "pointer" }}>Reset PIN</button>
               <button onClick={() => setConfirmAction({ type: "deactivate", member: c })} disabled={busy} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.alert}66`, color: C.alert, fontSize: 12.5, fontWeight: 600, padding: "7px 0", cursor: "pointer" }}>Deactivate</button>

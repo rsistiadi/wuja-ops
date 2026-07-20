@@ -1,5 +1,5 @@
 import React from "react";
-import { ClipboardList, Bus, ScanLine, Contact, BarChart3, Settings2 } from "lucide-react";
+import { ClipboardList, Bus, ScanLine, Contact, BarChart3, Settings2, Store } from "lucide-react";
 import { C } from "../../lib/tokens";
 
 const ALL_TABS = [
@@ -7,6 +7,7 @@ const ALL_TABS = [
   { key: "bus", label: "Bus", icon: Bus },
   { key: "scan", label: "Event", icon: ScanLine },
   { key: "verify", label: "Verify", icon: Contact },
+  { key: "merch", label: "Merch", icon: Store },
   { key: "reports", label: "Reports", icon: BarChart3 },
   { key: "admin", label: "Admin", icon: Settings2 },
 ];
