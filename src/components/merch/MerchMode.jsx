@@ -13,7 +13,7 @@ export default function MerchMode({ crew, isAdmin }) {
   const merchAccess = !!crew.merch_access;
   const availableTabs = [
     ...(merchAccess ? [{ k: "sell", l: "Sell", i: Store }] : []),
-    ...(merchAccess || isAdmin ? [{ k: "session", l: "Session", i: Clock }] : []),
+    ...(isAdmin ? [{ k: "session", l: "Session", i: Clock }] : []),
     ...(isAdmin ? [{ k: "items", l: "Items", i: Package }] : []),
     ...(merchAccess || isAdmin ? [{ k: "voids", l: "Voids", i: AlertCircle }] : []),
     ...(isAdmin ? [{ k: "reports", l: "Reports", i: BarChart3 }] : []),
@@ -45,9 +45,9 @@ export default function MerchMode({ crew, isAdmin }) {
       <div className="px-5 pb-3 grid gap-1.5" style={{ background: C.ink, gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}>
         {availableTabs.map((t) => { const Icon = t.i; const active = tab === t.k; return (
           <button key={t.k} onClick={() => setTab(t.k)} className="relative flex flex-col items-center justify-center gap-1 rounded-lg"
-            style={{ padding: "8px 0", fontSize: 11, fontWeight: 700, background: active ? C.gold : C.inkSoft, color: active ? C.ink : C.ink60, border: `1px solid ${active ? C.gold : C.inkLine}`, cursor: "pointer" }}>
+            style={{ padding: "8px 0", fontSize: 12.5, fontWeight: 700, background: active ? C.gold : C.inkSoft, color: active ? C.ink : C.ink60, border: `1px solid ${active ? C.gold : C.inkLine}`, cursor: "pointer" }}>
             <Icon size={14} />{t.l}
-            {t.k === "voids" && pendingVoidCount > 0 && <span style={{ position: "absolute", top: -5, right: -5, background: C.alert, color: "#fff", borderRadius: 999, fontSize: 11, fontWeight: 700, width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "JetBrains Mono, monospace" }}>{pendingVoidCount}</span>}
+            {t.k === "voids" && pendingVoidCount > 0 && <span style={{ position: "absolute", top: -5, right: -5, background: C.alert, color: "#fff", borderRadius: 999, fontSize: 12.5, fontWeight: 700, width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "JetBrains Mono, monospace" }}>{pendingVoidCount}</span>}
           </button>
         ); })}
       </div>

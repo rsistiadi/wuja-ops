@@ -26,15 +26,15 @@ export default function VoidsScreen({ crew, isAdmin, merchAccess }) {
       {merchAccess && <PrimaryButton icon={Plus} onClick={() => setRequesting(true)}>Request a Void</PrimaryButton>}
 
       <div>
-        <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>PENDING · {pending.length}</div>
-        {pending.length === 0 && <div style={{ color: C.ink40, fontSize: 13 }}>None.</div>}
+        <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 700, marginBottom: 8 }}>PENDING · {pending.length}</div>
+        {pending.length === 0 && <div style={{ color: C.ink40, fontSize: 14.5 }}>None.</div>}
         {pending.map((v) => (
           <VoidCard key={v.id} v={v} onClick={isAdmin ? () => setApproving(v) : undefined} />
         ))}
       </div>
 
       <div>
-        <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>RESOLVED</div>
+        <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 700, marginBottom: 8 }}>RESOLVED</div>
         {resolved.map((v) => <VoidCard key={v.id} v={v} />)}
       </div>
 
@@ -52,11 +52,11 @@ function VoidCard({ v, onClick }) {
   return (
     <Wrapper onClick={onClick} className="w-full text-left rounded-xl p-3.5 mb-2" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, cursor: onClick ? "pointer" : "default" }}>
       <div className="flex items-center justify-between">
-        <span style={{ color: C.parchment, fontSize: 13.5, fontWeight: 600 }}>{label} × {sale?.quantity}</span>
-        <span className="rounded-full" style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 9px", background: `${statusColor}22`, color: statusColor }}>{v.status.toUpperCase()}</span>
+        <span style={{ color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>{label} × {sale?.quantity}</span>
+        <span className="rounded-full" style={{ fontSize: 12.5, fontWeight: 700, padding: "3px 9px", background: `${statusColor}22`, color: statusColor }}>{v.status.toUpperCase()}</span>
       </div>
-      <div style={{ color: C.ink40, fontSize: 11.5, marginTop: 4 }}>{formatIDR(sale?.total_price)} · requested: "{v.requested_reason}"</div>
-      {v.approved_reason && <div style={{ color: C.ink40, fontSize: 11.5, marginTop: 2 }}>{v.status}: "{v.approved_reason}"</div>}
+      <div style={{ color: C.ink40, fontSize: 12.5, marginTop: 4 }}>{formatIDR(sale?.total_price)} · requested: "{v.requested_reason}"</div>
+      {v.approved_reason && <div style={{ color: C.ink40, fontSize: 12.5, marginTop: 2 }}>{v.status}: "{v.approved_reason}"</div>}
     </Wrapper>
   );
 }
@@ -87,28 +87,28 @@ function RequestVoidSheet({ crew, onClose, onRequested }) {
   return (
     <div className="flex flex-col" style={{ position: "fixed", inset: 0, zIndex: 30, background: C.ink }}>
       <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${C.inkLine}` }}>
-        <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 17, fontWeight: 600 }}>Request a Void</div>
+        <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 18.5, fontWeight: 600 }}>Request a Void</div>
         <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={20} color={C.ink40} /></button>
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4" style={{ background: C.inkSoft }}>
-        <div style={{ color: C.ink60, fontSize: 13, fontWeight: 600 }}>Which sale?</div>
+        <div style={{ color: C.ink60, fontSize: 14.5, fontWeight: 600 }}>Which sale?</div>
         <div className="flex flex-col gap-1.5">
-          {sales === null && <div style={{ color: C.ink40, fontSize: 13 }}>Loading…</div>}
+          {sales === null && <div style={{ color: C.ink40, fontSize: 14.5 }}>Loading…</div>}
           {sales?.map((s) => {
             const label = s.merch_item_variants ? `${s.merch_item_variants.merch_items?.name}${s.merch_item_variants.variant_label ? " — " + s.merch_item_variants.variant_label : ""}` : "Item";
             return (
               <button key={s.id} onClick={() => setSelected(s)} className="flex items-center justify-between rounded-lg px-3.5 py-2.5" style={{ background: selected?.id === s.id ? `${C.gold}22` : C.ink, border: `1px solid ${selected?.id === s.id ? C.gold : C.inkLine}`, cursor: "pointer" }}>
-                <span style={{ color: C.parchment, fontSize: 13, fontWeight: 600 }}>{label} × {s.quantity}</span>
-                <span style={{ color: C.ink40, fontSize: 11.5 }}>{formatIDR(s.total_price)} · {new Date(s.sold_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                <span style={{ color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>{label} × {s.quantity}</span>
+                <span style={{ color: C.ink40, fontSize: 12.5 }}>{formatIDR(s.total_price)} · {new Date(s.sold_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
               </button>
             );
           })}
         </div>
         <div>
-          <div style={{ color: C.ink60, fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Reason</div>
-          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="What went wrong?" style={{ width: "100%", background: C.ink, border: `1px solid ${C.inkLine}`, borderRadius: 12, color: C.parchment, fontSize: 15, padding: "12px 14px", outline: "none" }} />
+          <div style={{ color: C.ink60, fontSize: 14.5, fontWeight: 600, marginBottom: 6 }}>Reason</div>
+          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="What went wrong?" style={{ width: "100%", background: C.ink, border: `1px solid ${C.inkLine}`, borderRadius: 12, color: C.parchment, fontSize: 16.5, padding: "12px 14px", outline: "none" }} />
         </div>
-        {error && <div style={{ color: C.alert, fontSize: 13 }}>{error}</div>}
+        {error && <div style={{ color: C.alert, fontSize: 14.5 }}>{error}</div>}
       </div>
       <div className="px-5 pb-7 pt-3" style={{ background: C.inkSoft }}><PrimaryButton icon={Check} disabled={saving} onClick={submit}>{saving ? "Submitting…" : "Submit Request"}</PrimaryButton></div>
     </div>
@@ -138,31 +138,31 @@ function ApproveSheet({ voidRow, onClose, onDone }) {
   return (
     <div className="flex flex-col" style={{ position: "fixed", inset: 0, zIndex: 30, background: C.ink }}>
       <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${C.inkLine}` }}>
-        <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 17, fontWeight: 600 }}>Review Void</div>
+        <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 18.5, fontWeight: 600 }}>Review Void</div>
         <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={20} color={C.ink40} /></button>
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4" style={{ background: C.inkSoft }}>
         <div className="rounded-xl p-4" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
-          <div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>{label} × {sale?.quantity}</div>
-          <div style={{ color: C.ink40, fontSize: 12.5, marginTop: 2 }}>{formatIDR(sale?.total_price)}</div>
-          <div style={{ color: C.ink60, fontSize: 12.5, marginTop: 8, fontStyle: "italic" }}>Crew's reason: "{voidRow.requested_reason}"</div>
+          <div style={{ color: C.parchment, fontSize: 15.5, fontWeight: 600 }}>{label} × {sale?.quantity}</div>
+          <div style={{ color: C.ink40, fontSize: 13.5, marginTop: 2 }}>{formatIDR(sale?.total_price)}</div>
+          <div style={{ color: C.ink60, fontSize: 13.5, marginTop: 8, fontStyle: "italic" }}>Crew's reason: "{voidRow.requested_reason}"</div>
         </div>
         <div>
-          <div style={{ color: C.ink60, fontSize: 13, fontWeight: 600, marginBottom: 8 }}>If approving — where does the item go?</div>
+          <div style={{ color: C.ink60, fontSize: 14.5, fontWeight: 600, marginBottom: 8 }}>If approving — where does the item go?</div>
           <div className="flex gap-2">
-            <button onClick={() => setDisposition("available")} className="flex-1 rounded-lg" style={{ padding: "10px 0", fontSize: 13, fontWeight: 700, background: disposition === "available" ? C.gold : C.ink, color: disposition === "available" ? C.ink : C.ink60, border: `1px solid ${C.inkLine}`, cursor: "pointer" }}>Back to available</button>
-            <button onClick={() => setDisposition("damaged")} className="flex-1 rounded-lg" style={{ padding: "10px 0", fontSize: 13, fontWeight: 700, background: disposition === "damaged" ? C.gold : C.ink, color: disposition === "damaged" ? C.ink : C.ink60, border: `1px solid ${C.inkLine}`, cursor: "pointer" }}>Mark as damaged</button>
+            <button onClick={() => setDisposition("available")} className="flex-1 rounded-lg" style={{ padding: "10px 0", fontSize: 14.5, fontWeight: 700, background: disposition === "available" ? C.gold : C.ink, color: disposition === "available" ? C.ink : C.ink60, border: `1px solid ${C.inkLine}`, cursor: "pointer" }}>Back to available</button>
+            <button onClick={() => setDisposition("damaged")} className="flex-1 rounded-lg" style={{ padding: "10px 0", fontSize: 14.5, fontWeight: 700, background: disposition === "damaged" ? C.gold : C.ink, color: disposition === "damaged" ? C.ink : C.ink60, border: `1px solid ${C.inkLine}`, cursor: "pointer" }}>Mark as damaged</button>
           </div>
         </div>
         <div>
-          <div style={{ color: C.ink60, fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Your reason <span style={{ color: C.ink40, fontWeight: 500 }}>(required either way)</span></div>
-          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Confirmed with buyer, item unopened…" style={{ width: "100%", background: C.ink, border: `1px solid ${C.inkLine}`, borderRadius: 12, color: C.parchment, fontSize: 15, padding: "12px 14px", outline: "none" }} />
+          <div style={{ color: C.ink60, fontSize: 14.5, fontWeight: 600, marginBottom: 6 }}>Your reason <span style={{ color: C.ink40, fontWeight: 500 }}>(required either way)</span></div>
+          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Confirmed with buyer, item unopened…" style={{ width: "100%", background: C.ink, border: `1px solid ${C.inkLine}`, borderRadius: 12, color: C.parchment, fontSize: 16.5, padding: "12px 14px", outline: "none" }} />
         </div>
-        {error && <div style={{ color: C.alert, fontSize: 13 }}>{error}</div>}
+        {error && <div style={{ color: C.alert, fontSize: 14.5 }}>{error}</div>}
       </div>
       <div className="px-5 pb-7 pt-3 flex gap-2" style={{ background: C.inkSoft }}>
-        <button onClick={() => action(false)} disabled={saving} className="flex-1 flex items-center justify-center gap-1.5 rounded-xl" style={{ background: "transparent", border: `1px solid ${C.alert}66`, color: C.alert, fontWeight: 700, fontSize: 14, padding: "12px 0", cursor: "pointer" }}><XCircle size={15} /> Reject</button>
-        <button onClick={() => action(true)} disabled={saving} className="flex-[2] flex items-center justify-center gap-1.5 rounded-xl" style={{ background: C.gold, border: "none", color: C.ink, fontWeight: 700, fontSize: 14, padding: "12px 0", cursor: "pointer" }}><Check size={15} /> {saving ? "Saving…" : "Approve"}</button>
+        <button onClick={() => action(false)} disabled={saving} className="flex-1 flex items-center justify-center gap-1.5 rounded-xl" style={{ background: "transparent", border: `1px solid ${C.alert}66`, color: C.alert, fontWeight: 700, fontSize: 15.5, padding: "12px 0", cursor: "pointer" }}><XCircle size={15} /> Reject</button>
+        <button onClick={() => action(true)} disabled={saving} className="flex-[2] flex items-center justify-center gap-1.5 rounded-xl" style={{ background: C.gold, border: "none", color: C.ink, fontWeight: 700, fontSize: 15.5, padding: "12px 0", cursor: "pointer" }}><Check size={15} /> {saving ? "Saving…" : "Approve"}</button>
       </div>
     </div>
   );
