@@ -25,7 +25,7 @@ export default function BadgeLink({ reg, onBack, onNext }) {
     setSaving(true); setError("");
     const { error } = await supabase
       .from("registrations")
-      .update({ badge_number: badge.trim(), badge_status: "received" })
+      .update({ badge_number: badge.trim(), badge_status: "received", registered: true })
       .eq("id", reg.id);
     setSaving(false);
     if (error) { setError(error.code === "23505" ? "That badge number is already assigned to someone else." : error.message); return; }
