@@ -175,7 +175,7 @@ function BusDetailSheet({ bus, onClose }) {
   const refetch = useCallback(async () => {
     if (!legId) return;
     setLoading(true);
-    const { data, error } = await supabase.from("bus_trip_status").select("registration_id, bus_id, status, reason").eq("trip_leg_id", legId);
+    const { data, error } = await supabase.from("bus_trip_status").select("registration_id, bus_id, status, reason, recorded_at").eq("trip_leg_id", legId);
     if (error) { setError(error.message); setLoading(false); return; }
     setError("");
     setStatuses(data || []);
@@ -219,7 +219,7 @@ function BusDetailSheet({ bus, onClose }) {
                 <div className="flex items-center justify-between">
                   <div>
                     <div style={{ color: C.parchment, fontSize: 13.5, fontWeight: 600 }}>{p.full_name}</div>
-                    <div style={{ color: C.ink40, fontSize: 11.5, marginTop: 2 }}>{p.phone || "—"}</div>
+                    <div style={{ color: C.ink40, fontSize: 11.5, marginTop: 2 }}>{p.phone || "—"}{rec?.recorded_at ? ` · ${new Date(rec.recorded_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}</div>
                   </div>
                   <span className="rounded-full" style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", background: `${pill.color}22`, color: pill.color, flexShrink: 0 }}>{pill.text}</span>
                 </div>

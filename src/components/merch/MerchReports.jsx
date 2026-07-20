@@ -33,7 +33,7 @@ export default function MerchReports() {
         setDailyRevenue(Object.entries(byDay).sort((a, b) => b[0].localeCompare(a[0])));
       });
 
-    supabase.from("merch_sessions").select("*").order("opened_at", { ascending: false }).limit(30)
+    supabase.from("merch_sessions").select("*, opened_by:opened_by_crew_id(full_name), closed_by:closed_by_crew_id(full_name)").order("opened_at", { ascending: false }).limit(30)
       .then(({ data }) => {
         setSessions(data || []);
         const flagged = (data || []).filter((s) => s.cash_variance && Number(s.cash_variance) !== 0);
@@ -113,7 +113,7 @@ export default function MerchReports() {
         {discrepancyDays?.cashDays?.map((s) => (
           <div key={s.id} className="rounded-xl p-3.5 mb-2" style={{ background: C.ink, border: `1px solid ${C.alert}66` }}>
             <div className="flex items-center justify-between">
-              <span style={{ color: C.parchment, fontSize: 15.5, fontWeight: 600 }}>{new Date(s.opened_at).toLocaleDateString([], { dateStyle: "medium" })} — Cash</span>
+              <span style={{ color: C.parchment, fontSize: 15.5, fontWeight: 600 }}>{new Date(s.opened_at).toLocaleDateString([], { dateStyle: "medium" })} {new Date(s.opened_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} — Cash</span>
               <span style={{ fontFamily: "JetBrains Mono, monospace", color: C.alert, fontSize: 15.5, fontWeight: 700 }}>{s.cash_variance > 0 ? "+" : ""}{formatIDR(s.cash_variance)}</span>
             </div>
             {s.cash_variance_reason && <div style={{ color: C.ink60, fontSize: 14.5, marginTop: 4, fontStyle: "italic" }}>"{s.cash_variance_reason}"</div>}
@@ -125,7 +125,7 @@ export default function MerchReports() {
           return (
             <div key={r.id} className="rounded-xl p-3.5 mb-2" style={{ background: C.ink, border: `1px solid ${C.alert}66` }}>
               <div className="flex items-center justify-between">
-                <span style={{ color: C.parchment, fontSize: 15.5, fontWeight: 600 }}>{new Date(r.merch_sessions?.opened_at).toLocaleDateString([], { dateStyle: "medium" })} — {label}</span>
+                <span style={{ color: C.parchment, fontSize: 15.5, fontWeight: 600 }}>{new Date(r.merch_sessions?.opened_at).toLocaleDateString([], { dateStyle: "medium" })} {new Date(r.merch_sessions?.opened_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} — {label}</span>
                 <span style={{ fontFamily: "JetBrains Mono, monospace", color: C.alert, fontSize: 15.5, fontWeight: 700 }}>{r.variance > 0 ? "+" : ""}{r.variance}</span>
               </div>
               {r.reason && <div style={{ color: C.ink60, fontSize: 14.5, marginTop: 4, fontStyle: "italic" }}>"{r.reason}"</div>}
@@ -151,12 +151,22 @@ export default function MerchReports() {
         {sessions === null && <div style={{ color: C.ink40, fontSize: 15.5 }}>Loading…</div>}
         {sessions?.map((s) => (
           <div key={s.id} className="rounded-xl p-3.5 mb-2" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-2">
               <span style={{ color: C.parchment, fontSize: 15.5, fontWeight: 600 }}>{new Date(s.opened_at).toLocaleDateString([], { dateStyle: "medium" })}</span>
               <span className="rounded-full" style={{ fontSize: 12.5, fontWeight: 700, padding: "3px 9px", background: s.closed_at ? `${C.ok}22` : `${C.gold}22`, color: s.closed_at ? C.ok : C.gold }}>{s.closed_at ? "CLOSED" : "OPEN"}</span>
             </div>
+            <div style={{ borderTop: `1px dashed ${C.inkLine}`, paddingTop: 8 }}>
+              <div className="flex justify-between" style={{ marginBottom: 4 }}>
+                <span style={{ color: C.ink40, fontSize: 13.5 }}>Opened</span>
+                <span style={{ color: C.ink60, fontSize: 13.5, fontFamily: "JetBrains Mono, monospace" }}>{new Date(s.opened_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} — {s.opened_by?.full_name || "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span style={{ color: C.ink40, fontSize: 13.5 }}>Closed</span>
+                <span style={{ color: C.ink60, fontSize: 13.5, fontFamily: "JetBrains Mono, monospace" }}>{s.closed_at ? `${new Date(s.closed_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} — ${s.closed_by?.full_name || "—"}` : "— still open —"}</span>
+              </div>
+            </div>
             {s.closed_at && (
-              <div style={{ color: C.ink40, fontSize: 13.5, marginTop: 4 }}>
+              <div style={{ color: C.ink40, fontSize: 13.5, marginTop: 8, paddingTop: 8, borderTop: `1px dashed ${C.inkLine}` }}>
                 Cash variance: <span style={{ color: Number(s.cash_variance) === 0 ? C.ok : C.alert, fontWeight: 700 }}>{s.cash_variance > 0 ? "+" : ""}{formatIDR(s.cash_variance)}</span>
               </div>
             )}
