@@ -26,7 +26,7 @@ export default function DeskApp({ allowSkipPhoto }) {
     setBadge(b);
     // If they already have a photo on file (e.g. completing a deferred
     // badge pickup after an earlier Register Only), skip re-capturing.
-    if (reg.photo_status && reg.photo_status !== "none") {
+    if (reg.photo_status === "captured" || reg.photo_status === "skipped") {
       setPhotoStatus(reg.photo_status);
       if (reg.photo_status === "captured" && reg.photo_url) {
         const url = await getBadgePhotoUrl(reg.photo_url);

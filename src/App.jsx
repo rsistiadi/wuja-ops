@@ -13,6 +13,7 @@ import AdminMode from "./components/admin/AdminMode";
 import MerchMode from "./components/merch/MerchMode";
 import BottomTabBar from "./components/shared/BottomTabBar";
 import OwnBadgePrompt from "./components/OwnBadgePrompt";
+import RetakePhotoPrompt from "./components/RetakePhotoPrompt";
 
 export default function App() {
   const auth = useAuth();
@@ -60,6 +61,7 @@ export default function App() {
           </div>
 
           <OwnBadgePrompt registrationId={auth.crew.registration_id} />
+          <RetakePhotoPrompt registrationId={auth.crew.registration_id} />
 
           <div className="flex-1 flex flex-col overflow-hidden" style={{ paddingBottom: visibleTabs.length > 1 ? "calc(60px + env(safe-area-inset-bottom))" : 0 }}>
             {mode === "desk" && <DeskApp allowSkipPhoto={allowSkipPhoto} />}

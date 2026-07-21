@@ -40,7 +40,7 @@ export default function AdminMode({ callCrewAdmin, isSuperAdmin }) {
       </div>
       {tab === "checkpoints" && <AdminCheckpoints />}
       {tab === "buses" && <AdminBuses />}
-      {tab === "crew" && <AdminCrew callCrewAdmin={callCrewAdmin} />}
+      {tab === "crew" && <AdminCrew callCrewAdmin={callCrewAdmin} isSuperAdmin={isSuperAdmin} />}
       {tab === "settings" && <AdminSettings isSuperAdmin={isSuperAdmin} />}
     </div>
   );

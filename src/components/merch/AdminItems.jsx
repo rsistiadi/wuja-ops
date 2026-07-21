@@ -116,7 +116,14 @@ function EditVariantSheet({ item, variant, onClose, onSaved }) {
         </div>
         <div>
           <div style={{ color: C.ink60, fontSize: 14.5, fontWeight: 600, marginBottom: 6 }}>Price (IDR)</div>
-          <input value={price} onChange={(e) => setPrice(e.target.value)} type="number" style={inputStyle} />
+          <input
+            value={price ? Number(price).toLocaleString("id-ID") : ""}
+            onChange={(e) => setPrice(e.target.value.replace(/\D/g, ""))}
+            type="text"
+            inputMode="numeric"
+            placeholder="0"
+            style={inputStyle}
+          />
         </div>
         {!variant && (
           <div>

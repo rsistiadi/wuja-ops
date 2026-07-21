@@ -8,7 +8,7 @@ import { ROLE_META } from "../../lib/roleMeta";
 
 const ROLE_OPTIONS = Object.entries(ROLE_META).map(([value, v]) => ({ value, label: v.label }));
 
-export default function AdminCrew({ callCrewAdmin }) {
+export default function AdminCrew({ callCrewAdmin, isSuperAdmin }) {
   const [crew, setCrew] = useState([]);
   const [regById, setRegById] = useState({}); // registration_id -> registration row
   const [photoUrls, setPhotoUrls] = useState({}); // registration_id -> signed photo url
@@ -98,6 +98,15 @@ export default function AdminCrew({ callCrewAdmin }) {
     } catch (e) { setError(e.message); } finally { setBusy(false); setConfirmAction(null); }
   };
 
+  const requestRetake = async (c) => {
+    if (!c.registration_id) return;
+    setBusy(true); setError("");
+    const { error } = await supabase.from("registrations").update({ photo_status: "retake_requested" }).eq("id", c.registration_id);
+    if (error) setError(error.message);
+    await refetch();
+    setBusy(false);
+  };
+
   const CrewAvatar = ({ c, size = 44 }) => {
     const reg = regById[c.registration_id];
     if (!reg) return <div style={{ width: size, height: size, borderRadius: 999, background: `${C.gold}22`, border: `2px solid ${C.gold}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><UserCircle2 size={size * 0.55} color={C.gold} /></div>;
@@ -148,7 +157,12 @@ export default function AdminCrew({ callCrewAdmin }) {
                 <CrewAvatar c={c} size={38} />
                 <div><div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 700 }}>{c.full_name}</div><div style={{ color: C.ok, fontSize: 12.5, marginTop: 2 }}>{ROLE_META[c.approved_role]?.label}</div></div>
               </button>
-              <span className="rounded-full" style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", background: `${C.ok}22`, color: C.ok, flexShrink: 0 }}>ACTIVE</span>
+              <div className="flex flex-col items-end gap-1.5" style={{ flexShrink: 0 }}>
+                <span className="rounded-full" style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", background: `${C.ok}22`, color: C.ok }}>ACTIVE</span>
+                {regById[c.registration_id]?.photo_status === "retake_requested" && (
+                  <span className="rounded-full" style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 9px", background: `${C.alert}22`, color: C.alert }}>RETAKE REQUESTED</span>
+                )}
+              </div>
             </div>
             {resetNotice[c.id] && <div style={{ color: C.gold, fontSize: 12.5, marginTop: 8 }}>New PIN: <span style={{ fontFamily: "JetBrains Mono, monospace", fontWeight: 700 }}>{resetNotice[c.id]}</span> — share with them.</div>}
             <div className="mt-2.5"><Dropdown value={roleDraft[c.id] ?? c.approved_role} onChange={(v) => changeRole(c, v)} options={ROLE_OPTIONS} /></div>
@@ -214,6 +228,13 @@ export default function AdminCrew({ callCrewAdmin }) {
                 </div>
               )}
               {!regById[selected.registration_id] && <div style={{ color: C.ink40, fontSize: 12.5, marginTop: 12, textAlign: "center" }}>No linked badge record — this account predates the unified badge system.</div>}
+              {isSuperAdmin && regById[selected.registration_id] && (
+                regById[selected.registration_id].photo_status === "retake_requested" ? (
+                  <div className="w-full mt-4 rounded-lg text-center" style={{ background: `${C.alert}18`, border: `1px solid ${C.alert}66`, color: C.alert, fontSize: 12.5, fontWeight: 700, padding: "8px 0" }}>Retake already requested — waiting on them</div>
+                ) : (
+                  <button onClick={() => requestRetake(selected)} disabled={busy} className="w-full mt-4 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.alert}66`, color: C.alert, fontSize: 13.5, fontWeight: 600, padding: "9px 0", cursor: "pointer" }}>Request photo retake</button>
+                )
+              )}
             </div>
           </div>
         </div>
