@@ -48,7 +48,6 @@ export const ACCESS_RULE_OPTIONS = [
 ];
 
 export const CHECKPOINT_TYPE_OPTIONS = [
-  { value: "bus", label: "Bus" },
   { value: "event", label: "Exclusive Event" },
   { value: "entry", label: "General Entry" },
 ];

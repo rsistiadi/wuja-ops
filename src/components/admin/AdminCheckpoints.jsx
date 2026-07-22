@@ -1,21 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, Check, Search } from "lucide-react";
 import { C, CATEGORY_META } from "../../lib/tokens";
-import { TopBar, PrimaryButton, Dropdown, PersonTag } from "../shared/UI";
+import { TopBar, PrimaryButton, PersonTag } from "../shared/UI";
 import { CHECKPOINT_TYPE_OPTIONS, ACCESS_RULE_OPTIONS, CATEGORY_OPTIONS } from "../../lib/checkpointAccess";
 import { supabase } from "../../lib/supabaseClient";
 
 export default function AdminCheckpoints() {
   const [checkpoints, setCheckpoints] = useState([]);
-  const [buses, setBuses] = useState([]);
   const [screen, setScreen] = useState("list"); // list | form | roster
   const [editing, setEditing] = useState(null);
 
   const refetch = () => supabase.from("checkpoints").select("*").order("created_at").then(({ data }) => setCheckpoints(data || []));
-  useEffect(() => { refetch(); supabase.from("buses").select("id, name").order("name").then(({ data }) => setBuses(data || [])); }, []);
+  useEffect(() => { refetch(); }, []);
 
   if (screen === "form") {
-    return <CheckpointForm initial={editing} buses={buses} onBack={() => { setScreen("list"); setEditing(null); }} onSaved={() => { refetch(); setScreen("list"); setEditing(null); }} />;
+    return <CheckpointForm initial={editing} onBack={() => { setScreen("list"); setEditing(null); }} onSaved={() => { refetch(); setScreen("list"); setEditing(null); }} />;
   }
 
   return (
@@ -37,13 +36,12 @@ export default function AdminCheckpoints() {
   );
 }
 
-function CheckpointForm({ initial, buses, onBack, onSaved }) {
+function CheckpointForm({ initial, onBack, onSaved }) {
   const [name, setName] = useState(initial?.name || "");
   const [dateLabel, setDateLabel] = useState(initial?.date_label || "");
   const [type, setType] = useState(initial?.type || "entry");
   const [accessRule, setAccessRule] = useState(initial?.access_rule || "all");
   const [categories, setCategories] = useState(initial?.categories || []);
-  const [linkedBusId, setLinkedBusId] = useState(initial?.linked_bus_id || "");
   const [showPicker, setShowPicker] = useState(false);
   const [namedCount, setNamedCount] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -57,7 +55,7 @@ function CheckpointForm({ initial, buses, onBack, onSaved }) {
 
   const save = async () => {
     setSaving(true); setError("");
-    const payload = { name: name.trim(), date_label: dateLabel.trim() || null, type, access_rule: accessRule, categories, linked_bus_id: type === "bus" ? linkedBusId || null : null };
+    const payload = { name: name.trim(), date_label: dateLabel.trim() || null, type, access_rule: accessRule, categories };
     const { error } = initial
       ? await supabase.from("checkpoints").update(payload).eq("id", initial.id)
       : await supabase.from("checkpoints").insert(payload);
@@ -91,10 +89,6 @@ function CheckpointForm({ initial, buses, onBack, onSaved }) {
             ); })}
           </div>
         </div>
-
-        {type === "bus" && buses.length > 0 && (
-          <Field label="Linked bus"><Dropdown value={linkedBusId} onChange={setLinkedBusId} options={[{ value: "", label: "— none —" }, ...buses.map((b) => ({ value: b.id, label: b.name }))]} /></Field>
-        )}
 
         <div>
           <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginBottom: 8 }}>Who's allowed in</div>

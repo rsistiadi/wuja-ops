@@ -80,7 +80,7 @@ function RequestVoidSheet({ crew, onClose, onRequested }) {
     setSaving(true); setError("");
     const { error } = await supabase.from("merch_voids").insert({ sale_id: selected.id, requested_by_crew_id: crew.id, requested_reason: reason.trim() });
     setSaving(false);
-    if (error) { setError(error.message); return; }
+    if (error) { setError(error.code === "23505" ? "A void request for this sale is already pending — no need to submit another." : error.message); return; }
     onRequested();
   };
 
