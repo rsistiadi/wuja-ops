@@ -4,6 +4,7 @@ import { C } from "../../lib/tokens";
 import { TopBar, PrimaryButton, Dropdown, PersonTag } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
 import BusScanSheet from "./BusScanSheet";
+import { naturalSortBy } from "../../lib/naturalSort";
 
 export default function BusOpsMode() {
   const [buses, setBuses] = useState([]);
@@ -23,12 +24,13 @@ export default function BusOpsMode() {
 
   useEffect(() => {
     Promise.all([
-      supabase.from("buses").select("id, name, assigned_lo_crew_id, crew:assigned_lo_crew_id(full_name)").order("name"),
-      supabase.from("trip_legs").select("id, label").order("leg_date"),
+      supabase.from("buses").select("id, name, assigned_lo_crew_id, crew:assigned_lo_crew_id(full_name)"),
+      supabase.from("trip_legs").select("id, label").order("sort_order"),
     ]).then(([busesRes, legsRes]) => {
-      setBuses(busesRes.data || []);
+      const sortedBuses = naturalSortBy(busesRes.data, (b) => b.name);
+      setBuses(sortedBuses);
       setLegs(legsRes.data || []);
-      if (busesRes.data?.length) setBusId(busesRes.data[0].id);
+      if (sortedBuses.length) setBusId(sortedBuses[0].id);
       if (legsRes.data?.length) setLegId(legsRes.data[0].id);
     });
   }, []);

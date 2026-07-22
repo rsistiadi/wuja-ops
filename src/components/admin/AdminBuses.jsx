@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, Check, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, Search, ChevronUp, ChevronDown } from "lucide-react";
 import { C } from "../../lib/tokens";
 import { TopBar, PrimaryButton, PersonTag, Dropdown } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
+import { naturalSortBy } from "../../lib/naturalSort";
 
 export default function AdminBuses() {
   const [buses, setBuses] = useState([]);
@@ -20,15 +21,16 @@ export default function AdminBuses() {
 
   const refetch = async () => {
     const [busesRes, legsRes, crewRes] = await Promise.all([
-      supabase.from("buses").select("id, name, assigned_lo_crew_id").order("name"),
-      supabase.from("trip_legs").select("id, label").order("leg_date"),
+      supabase.from("buses").select("id, name, assigned_lo_crew_id"),
+      supabase.from("trip_legs").select("id, label, sort_order").order("sort_order"),
       supabase.from("crew").select("id, full_name").eq("status", "active"),
     ]);
-    setBuses(busesRes.data || []);
+    const sortedBuses = naturalSortBy(busesRes.data, (b) => b.name);
+    setBuses(sortedBuses);
     setLegs(legsRes.data || []);
     setActiveCrew(crewRes.data || []);
     const counts = {};
-    for (const b of busesRes.data || []) {
+    for (const b of sortedBuses) {
       const { count } = await supabase.from("registrations").select("id", { count: "exact", head: true }).eq("assigned_bus_id", b.id);
       counts[b.id] = count || 0;
     }
@@ -61,6 +63,19 @@ export default function AdminBuses() {
     setSaving(false); setScreen("list"); setEditingLeg(null); setLegLabel(""); refetch();
   };
   const deleteLeg = async () => { setSaving(true); await supabase.from("trip_legs").delete().eq("id", editingLeg.id); setSaving(false); setScreen("list"); setEditingLeg(null); refetch(); };
+
+  // Swaps sort_order with the neighboring leg — simplest possible
+  // reorder that keeps every value unique with no gaps or renumbering.
+  const moveLeg = async (index, direction) => {
+    const otherIndex = index + direction;
+    if (otherIndex < 0 || otherIndex >= legs.length) return;
+    const a = legs[index], b = legs[otherIndex];
+    await Promise.all([
+      supabase.from("trip_legs").update({ sort_order: b.sort_order }).eq("id", a.id),
+      supabase.from("trip_legs").update({ sort_order: a.sort_order }).eq("id", b.id),
+    ]);
+    refetch();
+  };
 
   if (screen === "roster" && rosterBus) return <BusRosterPicker bus={rosterBus} onBack={() => { setScreen("list"); setRosterBus(null); refetch(); }} />;
 
@@ -129,10 +144,14 @@ export default function AdminBuses() {
       </div>
       <div className="px-5 pt-5 pb-6 flex flex-col gap-2">
         <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700 }}>TRIPS / LEGS</div>
-        {legs.map((l) => (
+        {legs.map((l, i) => (
           <div key={l.id} className="rounded-xl px-4 py-3 flex items-center justify-between" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
             <div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>{l.label}</div>
-            <button onClick={() => { setEditingLeg(l); setLegLabel(l.label); setScreen("legForm"); }} style={{ background: "none", border: "none", cursor: "pointer" }}><Pencil size={15} color={C.ink40} /></button>
+            <div className="flex items-center gap-1">
+              <button onClick={() => moveLeg(i, -1)} disabled={i === 0} style={{ background: "none", border: "none", cursor: i === 0 ? "default" : "pointer", opacity: i === 0 ? 0.3 : 1, padding: 4 }}><ChevronUp size={16} color={C.ink40} /></button>
+              <button onClick={() => moveLeg(i, 1)} disabled={i === legs.length - 1} style={{ background: "none", border: "none", cursor: i === legs.length - 1 ? "default" : "pointer", opacity: i === legs.length - 1 ? 0.3 : 1, padding: 4 }}><ChevronDown size={16} color={C.ink40} /></button>
+              <button onClick={() => { setEditingLeg(l); setLegLabel(l.label); setScreen("legForm"); }} style={{ background: "none", border: "none", cursor: "pointer", marginLeft: 4 }}><Pencil size={15} color={C.ink40} /></button>
+            </div>
           </div>
         ))}
         <button onClick={() => { setEditingLeg(null); setLegLabel(""); setScreen("legForm"); }} className="flex items-center justify-center gap-2 rounded-xl" style={{ background: C.ink, border: `1px dashed ${C.gold}66`, color: C.gold, fontSize: 13.5, fontWeight: 700, padding: "10px 0", cursor: "pointer" }}><Plus size={14} /> New trip</button>

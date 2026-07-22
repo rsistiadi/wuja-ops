@@ -212,7 +212,7 @@ export default function LoginFlow({ auth }) {
 
         {stage === "photo" && (
           <>
-            <div style={{ color: C.ink60, fontSize: 13.5 }}>A photo is required — this becomes your badge photo.</div>
+            <div style={{ color: C.ink60, fontSize: 13.5 }}>This becomes your badge photo, so let's get it right — stand somewhere plain and well-lit, and get your face and shoulders in frame. You've got this.</div>
             <div className="rounded-2xl relative overflow-hidden mx-auto" style={{ background: "#0B1524", border: `1px solid ${C.inkLine}`, width: "100%", maxWidth: 320, aspectRatio: "1 / 1" }}>
               {!photoBlob ? (
                 cameraError ? (
