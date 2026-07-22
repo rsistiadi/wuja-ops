@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { C } from "../../lib/tokens";
 import { TopBar, PersonTag, Dropdown } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
+import { naturalSortBy } from "../../lib/naturalSort";
 import VirtualList from "../shared/VirtualList";
 
 const CREW_CATEGORIES = ["committee", "volunteer"];
@@ -11,6 +12,7 @@ const STATUS_LABELS = { pending: "Pending", badge_pending: "Badge Pending", chec
 export default function ReportsScreen() {
   const [participantCounts, setParticipantCounts] = useState({ pending: 0, badge_pending: 0, checked_in: 0 });
   const [crewCounts, setCrewCounts] = useState({ pending: 0, badge_pending: 0, checked_in: 0 });
+  const [walkInStats, setWalkInStats] = useState({ total: 0, free: 0, unpaid: 0, paid: 0, collected: 0 });
   const [busReport, setBusReport] = useState([]); // [{ bus, roster, legs: [{leg, boarded, notRiding, elsewhere, unaccounted}] }]
   const [eventReport, setEventReport] = useState([]); // [{ checkpoint, scanned, allowed, denied }]
   const [activity, setActivity] = useState([]);
@@ -39,11 +41,25 @@ export default function ReportsScreen() {
       const [participantRes, crewRes] = await Promise.all([countFor("participant"), countFor("crew")]);
       if (!cancelled) { setParticipantCounts(participantRes); setCrewCounts(crewRes); }
 
+      // Walk-ins get a distinct reg_code prefix (vs. the original bulk
+      // import or crew self-signup), so no separate flag column is needed.
+      const { data: walkIns } = await supabase.from("registrations").select("payment_status, payment_amount").like("reg_code", "WUJA2026-W%");
+      if (!cancelled) {
+        const rows = walkIns || [];
+        setWalkInStats({
+          total: rows.length,
+          free: rows.filter((r) => r.payment_status === "free").length,
+          unpaid: rows.filter((r) => r.payment_status === "unpaid").length,
+          paid: rows.filter((r) => r.payment_status === "paid").length,
+          collected: rows.reduce((sum, r) => sum + (r.payment_status === "paid" ? Number(r.payment_amount || 0) : 0), 0),
+        });
+      }
+
       const [busesRes, legsRes] = await Promise.all([
-        supabase.from("buses").select("id, name").order("name"),
-        supabase.from("trip_legs").select("id, label").order("leg_date"),
+        supabase.from("buses").select("id, name"),
+        supabase.from("trip_legs").select("id, label").order("sort_order"),
       ]);
-      const buses = busesRes.data || [];
+      const buses = naturalSortBy(busesRes.data, (b) => b.name);
       const legs = legsRes.data || [];
 
       const busRows = [];
@@ -109,6 +125,21 @@ export default function ReportsScreen() {
         </div>
 
         <div>
+          <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>WALK-IN REGISTRATIONS</div>
+          <div className="rounded-xl p-3.5" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
+            <div className="flex items-center justify-between mb-3">
+              <span style={{ color: C.parchment, fontSize: 14.5, fontWeight: 700 }}>{walkInStats.total} total</span>
+              <span style={{ fontFamily: "JetBrains Mono, monospace", color: C.ok, fontSize: 13, fontWeight: 700 }}>Rp {walkInStats.collected.toLocaleString("id-ID")} collected</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <Stat label="Free" value={walkInStats.free} color={C.ink40} />
+              <Stat label="Not Paid" value={walkInStats.unpaid} color={C.alert} />
+              <Stat label="Paid" value={walkInStats.paid} color={C.ok} />
+            </div>
+          </div>
+        </div>
+
+        <div>
           <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>BUS TRIPS <span style={{ fontWeight: 500, textTransform: "none" }}>— tap for detail</span></div>
           {busReport.length === 0 && !loading && <div style={{ color: C.ink40, fontSize: 13.5 }}>No buses configured.</div>}
           {busReport.map(({ bus, rosterCount, legStats }) => (
@@ -165,7 +196,7 @@ function BusDetailSheet({ bus, onClose }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    supabase.from("trip_legs").select("id, label").order("leg_date").then(({ data }) => {
+    supabase.from("trip_legs").select("id, label").order("sort_order").then(({ data }) => {
       setLegs(data || []);
       if (data?.length) setLegId(data[0].id);
     });

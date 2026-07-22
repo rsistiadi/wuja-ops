@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { ArrowRight, Search, X } from "lucide-react";
-import { C, genRegCode } from "../../lib/tokens";
+import { ArrowRight, ArrowLeft, Search, X, AlertTriangle } from "lucide-react";
+import { C, genRegCode, CATEGORY_META } from "../../lib/tokens";
 import { TopBar, PrimaryButton, Dropdown } from "../shared/UI";
 import { CATEGORY_OPTIONS, PERFORMER_COLOR_OPTIONS, PERFORMER_COLOR_VENUE } from "../../lib/checkpointAccess";
 import { supabase } from "../../lib/supabaseClient";
 
 export default function WalkInForm({ onCancel, onCreate }) {
+  const [screen, setScreen] = useState("form"); // form | confirm
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -66,6 +67,41 @@ export default function WalkInForm({ onCancel, onCreate }) {
     setSaving(false);
     if (created) onCreate(created);
   };
+
+  if (screen === "confirm") {
+    const meta = CATEGORY_META[category];
+    return (
+      <div className="flex-1 flex flex-col">
+        <TopBar title="Confirm Walk-in" subtitle="Review before creating" onBack={() => setScreen("form")} accent={C.gold} />
+        <div className="flex-1 overflow-y-auto px-5 py-6 flex flex-col gap-4" style={{ background: C.inkSoft }}>
+          <div className="rounded-2xl p-4" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
+            <span className="rounded-full" style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", background: `${meta.color}22`, color: meta.color }}>{meta.label}</span>
+            <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 20, fontWeight: 600, marginTop: 8 }}>{name.trim()}</div>
+            <div className="flex flex-col gap-1.5 mt-3">
+              <SummaryRow label="Phone" value={phone.trim()} />
+              {email.trim() && <SummaryRow label="Email" value={email.trim()} />}
+              {category === "performer" && <SummaryRow label="Performer color" value={PERFORMER_COLOR_OPTIONS.find((o) => o.value === performerColor)?.label} />}
+              {category === "accompanying" && <SummaryRow label="Accompanying" value={linkedPerson?.full_name} />}
+              <SummaryRow label="Payment" value={paymentStatus === "paid" ? `Paid — Rp ${Number(paymentAmount).toLocaleString("id-ID")}` : paymentStatus === "free" ? "Free" : "Not Paid"} />
+            </div>
+          </div>
+          <div className="rounded-xl px-4 py-3.5 flex items-start gap-2.5" style={{ background: `${C.gold}14`, border: `1px solid ${C.gold}44` }}>
+            <AlertTriangle size={16} color={C.gold} style={{ marginTop: 1, flexShrink: 0 }} />
+            <span style={{ color: C.gold, fontSize: 13.5 }}>This creates a brand-new registration. Double-check the name and details above — go back if anything needs fixing.</span>
+          </div>
+          {error && <div style={{ color: C.alert, fontSize: 13.5 }}>{error}</div>}
+        </div>
+        <div className="px-5 pb-7 pt-3 flex gap-3" style={{ background: C.inkSoft }}>
+          <button onClick={() => setScreen("form")} className="flex items-center justify-center gap-2 rounded-xl" style={{ flex: 1, background: "transparent", border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 14.5, fontWeight: 600, padding: "14px 0", cursor: "pointer" }}>
+            <ArrowLeft size={16} /> Back
+          </button>
+          <div style={{ flex: 2 }}>
+            <PrimaryButton icon={ArrowRight} disabled={saving} onClick={submit}>{saving ? "Creating…" : "Confirm & Create"}</PrimaryButton>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col">
@@ -143,8 +179,17 @@ export default function WalkInForm({ onCancel, onCreate }) {
         {error && <div style={{ color: C.alert, fontSize: 13.5 }}>{error}</div>}
       </div>
       <div className="px-5 pb-7 pt-3" style={{ background: C.inkSoft }}>
-        <PrimaryButton icon={ArrowRight} disabled={!canSubmit || saving} onClick={submit}>{saving ? "Creating…" : "Create & continue"}</PrimaryButton>
+        <PrimaryButton icon={ArrowRight} disabled={!canSubmit} onClick={() => setScreen("confirm")}>Review & Continue</PrimaryButton>
       </div>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span style={{ color: C.ink40, fontSize: 13 }}>{label}</span>
+      <span style={{ color: C.parchment, fontSize: 13.5, fontWeight: 600 }}>{value}</span>
     </div>
   );
 }
