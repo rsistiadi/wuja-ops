@@ -11,6 +11,8 @@ export default function WalkInForm({ onCancel, onCreate }) {
   const [email, setEmail] = useState("");
   const [category, setCategory] = useState("committee");
   const [performerColor, setPerformerColor] = useState("yellow");
+  const [paymentStatus, setPaymentStatus] = useState("unpaid");
+  const [paymentAmount, setPaymentAmount] = useState("");
   const [linkedQuery, setLinkedQuery] = useState("");
   const [linkedResults, setLinkedResults] = useState([]);
   const [linkedPerson, setLinkedPerson] = useState(null);
@@ -23,7 +25,7 @@ export default function WalkInForm({ onCancel, onCreate }) {
       .then(({ data }) => setLinkedResults(data || []));
   }, [category, linkedQuery]);
 
-  const canSubmit = name.trim().length > 1 && phone.trim().length > 3 && (category !== "accompanying" || linkedPerson);
+  const canSubmit = name.trim().length > 1 && phone.trim().length > 3 && (category !== "accompanying" || linkedPerson) && (paymentStatus !== "paid" || Number(paymentAmount) > 0);
 
   const submit = async () => {
     setSaving(true); setError("");
@@ -39,6 +41,8 @@ export default function WalkInForm({ onCancel, onCreate }) {
           category,
           performer_color: category === "performer" ? performerColor : null,
           linked_registration_id: category === "accompanying" ? linkedPerson.id : null,
+          payment_status: paymentStatus,
+          payment_amount: paymentStatus === "paid" ? Number(paymentAmount) : null,
           // Bus assignment is deliberately not decided here — that's a
           // separate logistics decision made later via Admin → Buses →
           // Roster, not something registration should bundle in.
@@ -76,6 +80,38 @@ export default function WalkInForm({ onCancel, onCreate }) {
         {category === "performer" && (
           <Field label="Performer color group"><Dropdown value={performerColor} onChange={setPerformerColor} options={PERFORMER_COLOR_OPTIONS} /></Field>
         )}
+
+        <div>
+          <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginBottom: 8 }}>Payment</div>
+          <div className="flex gap-2">
+            {[
+              { value: "free", label: "Free" },
+              { value: "unpaid", label: "Not Paid" },
+              { value: "paid", label: "Paid" },
+            ].map((o) => {
+              const active = paymentStatus === o.value;
+              return (
+                <button key={o.value} onClick={() => setPaymentStatus(o.value)} className="flex-1 rounded-xl py-2.5"
+                  style={{ background: active ? C.gold : C.ink, border: `1px solid ${active ? C.gold : C.inkLine}`, color: active ? C.ink : C.parchment, fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>
+                  {o.label}
+                </button>
+              );
+            })}
+          </div>
+          {paymentStatus === "paid" && (
+            <div className="mt-3">
+              <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginBottom: 6 }}>Amount (IDR)</div>
+              <input
+                value={paymentAmount ? Number(paymentAmount).toLocaleString("id-ID") : ""}
+                onChange={(e) => setPaymentAmount(e.target.value.replace(/\D/g, ""))}
+                type="text"
+                inputMode="numeric"
+                placeholder="0"
+                style={inputStyle}
+              />
+            </div>
+          )}
+        </div>
 
         {category === "accompanying" && (
           <div>
