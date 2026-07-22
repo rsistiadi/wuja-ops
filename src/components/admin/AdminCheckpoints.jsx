@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, Check, Search } from "lucide-react";
 import { C, CATEGORY_META } from "../../lib/tokens";
 import { TopBar, PrimaryButton, PersonTag } from "../shared/UI";
-import { CHECKPOINT_TYPE_OPTIONS, ACCESS_RULE_OPTIONS, CATEGORY_OPTIONS } from "../../lib/checkpointAccess";
+import { CHECKPOINT_TYPE_OPTIONS, ACCESS_RULE_OPTIONS, CHECKPOINT_CATEGORY_OPTIONS } from "../../lib/checkpointAccess";
 import { supabase } from "../../lib/supabaseClient";
 
 export default function AdminCheckpoints() {
@@ -104,8 +104,9 @@ function CheckpointForm({ initial, onBack, onSaved }) {
         {(accessRule === "category" || accessRule === "both") && (
           <div>
             <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginBottom: 8 }}>Allowed categories</div>
+            <div style={{ color: C.ink40, fontSize: 12, marginBottom: 10 }}>Performer isn't listed here on purpose — their venue access is controlled automatically by assigned color, not category. Use the named guest list for that.</div>
             <div className="flex flex-col gap-2">
-              {CATEGORY_OPTIONS.map((c) => { const active = categories.includes(c.value); const color = CATEGORY_META[c.value].color; return (
+              {CHECKPOINT_CATEGORY_OPTIONS.map((c) => { const active = categories.includes(c.value); const color = CATEGORY_META[c.value].color; return (
                 <button key={c.value} onClick={() => toggleCategory(c.value)} className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: C.ink, border: `1px solid ${active ? color : C.inkLine}`, cursor: "pointer" }}>
                   <span style={{ fontSize: 13.5, fontWeight: 600, color }}>{c.label}</span>
                   <div className="flex items-center justify-center rounded" style={{ width: 18, height: 18, background: active ? color : "transparent", border: `1.5px solid ${active ? color : C.inkLine}` }}>{active && <Check size={12} color={C.ink} />}</div>

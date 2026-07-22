@@ -40,6 +40,15 @@ export const PERFORMER_COLOR_VENUE = {
   blue: "USD",
 };
 
+// Same list as CATEGORY_OPTIONS, but for checkpoint category-rule
+// pickers specifically. "Performer" is deliberately excluded here:
+// checking it as an allowed category would let every performer in
+// regardless of assigned color, silently bypassing the named-list
+// mechanism above. Performer access must only ever be granted via
+// the named list, never the category rule — for any checkpoint,
+// not just the three current venue checkpoints.
+export const CHECKPOINT_CATEGORY_OPTIONS = CATEGORY_OPTIONS.filter((c) => c.value !== "performer");
+
 export const ACCESS_RULE_OPTIONS = [
   { value: "all", label: "Open to all" },
   { value: "category", label: "By category" },
