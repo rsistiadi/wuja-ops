@@ -4,6 +4,7 @@ import SearchScreen from "./SearchScreen";
 import WalkInForm from "./WalkInForm";
 import BadgeLink from "./BadgeLink";
 import PhotoCapture from "./PhotoCapture";
+import MealChoices from "./MealChoices";
 import RegisterOnlyConfirm from "./RegisterOnlyConfirm";
 import { Complete, RegisterOnlyDone } from "./CompleteScreens";
 
@@ -22,6 +23,11 @@ export default function DeskApp({ allowSkipPhoto }) {
   const selectReg = (r) => { setReg(r); setScreen(deskMode === "full" ? "badge" : "register_confirm"); };
   const createWalkIn = (newReg) => { setReg(newReg); setScreen(deskMode === "full" ? "badge" : "register_confirm"); };
 
+  // Meal service doesn't apply to performers, so they skip straight
+  // through to done instead of being asked.
+  const afterPhotoFull = () => setScreen(reg.category === "performer" ? "done" : "meals");
+  const afterPhotoRegisterOnly = () => setScreen(reg.category === "performer" ? "register_done" : "register_meals");
+
   const handleBadgeNext = async (b) => {
     setBadge(b);
     // If they already have a photo on file (e.g. completing a deferred
@@ -32,22 +38,24 @@ export default function DeskApp({ allowSkipPhoto }) {
         const url = await getBadgePhotoUrl(reg.photo_url);
         setPhotoUrl(url);
       }
-      setScreen("done");
+      afterPhotoFull();
     } else {
       setScreen("photo");
     }
   };
 
-  const finishFullCheckIn = (status, url) => { setPhotoStatus(status); setPhotoUrl(url); setScreen("done"); };
-  const finishRegisterOnlyPhoto = () => setScreen("register_done");
+  const finishFullCheckIn = (status, url) => { setPhotoStatus(status); setPhotoUrl(url); afterPhotoFull(); };
+  const finishRegisterOnlyPhoto = () => afterPhotoRegisterOnly();
 
   if (screen === "search") return <SearchScreen deskMode={deskMode} setDeskMode={setDeskMode} onSelect={selectReg} onWalkIn={() => setScreen("walkin")} />;
   if (screen === "walkin") return <WalkInForm onCancel={() => setScreen("search")} onCreate={createWalkIn} />;
   if (screen === "badge") return <BadgeLink reg={reg} onBack={() => setScreen("search")} onNext={handleBadgeNext} />;
   if (screen === "photo") return <PhotoCapture reg={reg} allowSkip={allowSkipPhoto} onBack={() => setScreen("badge")} onNext={finishFullCheckIn} />;
+  if (screen === "meals") return <MealChoices reg={reg} onBack={() => setScreen("badge")} onNext={() => setScreen("done")} />;
   if (screen === "done") return <Complete reg={reg} badge={badge} photoStatus={photoStatus} photoUrl={photoUrl} onNextGuest={resetToSearch} />;
   if (screen === "register_confirm") return <RegisterOnlyConfirm reg={reg} onBack={() => setScreen("search")} onDone={() => setScreen("register_photo")} />;
   if (screen === "register_photo") return <PhotoCapture reg={reg} allowSkip={allowSkipPhoto} onBack={() => setScreen("register_confirm")} onNext={finishRegisterOnlyPhoto} />;
+  if (screen === "register_meals") return <MealChoices reg={reg} onBack={() => setScreen("register_confirm")} onNext={() => setScreen("register_done")} />;
   if (screen === "register_done") return <RegisterOnlyDone onNextGuest={resetToSearch} />;
 
   return null;

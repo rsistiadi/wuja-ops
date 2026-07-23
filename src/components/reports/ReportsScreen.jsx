@@ -4,6 +4,7 @@ import { C } from "../../lib/tokens";
 import { TopBar, PersonTag, Dropdown } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
 import { naturalSortBy } from "../../lib/naturalSort";
+import { BOROBUDUR_MEAL_OPTIONS, PRAMBANAN_MEAL_OPTIONS } from "../../lib/mealChoices";
 import VirtualList from "../shared/VirtualList";
 
 const CREW_CATEGORIES = ["committee", "volunteer"];
@@ -13,6 +14,7 @@ export default function ReportsScreen() {
   const [participantCounts, setParticipantCounts] = useState({ pending: 0, badge_pending: 0, checked_in: 0 });
   const [crewCounts, setCrewCounts] = useState({ pending: 0, badge_pending: 0, checked_in: 0 });
   const [walkInStats, setWalkInStats] = useState({ total: 0, free: 0, unpaid: 0, paid: 0, collected: 0 });
+  const [mealStats, setMealStats] = useState({ borobudur: {}, prambanan: {} });
   const [busReport, setBusReport] = useState([]); // [{ bus, roster, legs: [{leg, boarded, notRiding, elsewhere, unaccounted}] }]
   const [eventReport, setEventReport] = useState([]); // [{ checkpoint, scanned, allowed, denied }]
   const [activity, setActivity] = useState([]);
@@ -52,6 +54,22 @@ export default function ReportsScreen() {
           unpaid: rows.filter((r) => r.payment_status === "unpaid").length,
           paid: rows.filter((r) => r.payment_status === "paid").length,
           collected: rows.reduce((sum, r) => sum + (r.payment_status === "paid" ? Number(r.payment_amount || 0) : 0), 0),
+        });
+      }
+
+      // Excludes performers — they aren't asked, meal service doesn't apply to them.
+      const { data: mealRows } = await supabase.from("registrations").select("meal_choice_borobudur, meal_choice_prambanan").neq("category", "performer");
+      if (!cancelled) {
+        const rows = mealRows || [];
+        const countBy = (key, options) => {
+          const counts = {};
+          for (const o of options) counts[o.value] = rows.filter((r) => r[key] === o.value).length;
+          counts.not_asked = rows.filter((r) => !r[key]).length;
+          return counts;
+        };
+        setMealStats({
+          borobudur: countBy("meal_choice_borobudur", BOROBUDUR_MEAL_OPTIONS),
+          prambanan: countBy("meal_choice_prambanan", PRAMBANAN_MEAL_OPTIONS),
         });
       }
 
@@ -136,6 +154,14 @@ export default function ReportsScreen() {
               <Stat label="Not Paid" value={walkInStats.unpaid} color={C.alert} />
               <Stat label="Paid" value={walkInStats.paid} color={C.ok} />
             </div>
+          </div>
+        </div>
+
+        <div>
+          <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>MEAL CHOICES <span style={{ fontWeight: 500, textTransform: "none" }}>— for catering counts, excludes performers</span></div>
+          <div className="flex flex-col gap-2.5">
+            <MealCard title="31 July — Lunch, Borobudur" options={BOROBUDUR_MEAL_OPTIONS} counts={mealStats.borobudur} />
+            <MealCard title="1 August — Dinner, Prambanan" options={PRAMBANAN_MEAL_OPTIONS} counts={mealStats.prambanan} />
           </div>
         </div>
 
@@ -399,6 +425,18 @@ function CheckpointDetailSheet({ checkpoint, onClose }) {
           )}
         />
       )}
+    </div>
+  );
+}
+
+function MealCard({ title, options, counts }) {
+  return (
+    <div className="rounded-xl p-3.5" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
+      <div style={{ color: C.parchment, fontSize: 13.5, fontWeight: 700, marginBottom: 10 }}>{title}</div>
+      <div className="grid grid-cols-2 gap-2">
+        {options.map((o) => <Stat key={o.value} label={o.label} value={counts[o.value] || 0} color={o.value === "na" ? C.ink40 : C.gold} />)}
+        <Stat label="Not Asked" value={counts.not_asked || 0} color={C.alert} />
+      </div>
     </div>
   );
 }
