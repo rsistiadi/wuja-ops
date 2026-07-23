@@ -30,7 +30,7 @@ export default function OwnBadgePrompt({ registrationId, onConfirmed }) {
       setResult({ ok: false, message: "That badge doesn't match your own record — make sure you're scanning your own badge." });
       return;
     }
-    const { error } = await supabase.from("registrations").update({ badge_status: "received" }).eq("id", registrationId);
+    const { error } = await supabase.from("registrations").update({ badge_status: "received", registered: true }).eq("id", registrationId);
     if (error) { setResult({ ok: false, message: error.message }); return; }
     setResult({ ok: true, message: "Badge confirmed — you're all set." });
     setReg((r) => ({ ...r, badge_status: "received" }));

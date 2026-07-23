@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from "react";
 import { getBadgePhotoUrl } from "../../lib/photoStorage";
+import { supabase } from "../../lib/supabaseClient";
 import SearchScreen from "./SearchScreen";
 import WalkInForm from "./WalkInForm";
 import BadgeLink from "./BadgeLink";
@@ -23,9 +24,19 @@ export default function DeskApp({ allowSkipPhoto }) {
   const selectReg = (r) => { setReg(r); setScreen(deskMode === "full" ? "badge" : "register_confirm"); };
   const createWalkIn = (newReg) => { setReg(newReg); setScreen(deskMode === "full" ? "badge" : "register_confirm"); };
 
-  // Meal service doesn't apply to performers, so they skip straight
-  // through to done instead of being asked.
-  const afterPhotoFull = () => setScreen(reg.category === "performer" ? "done" : "meals");
+  // registered:true is the real "fully checked in" signal, so it's
+  // written here — at the actual last step of Full Check-in — rather
+  // than at the badge scan. Meals is normally that last step;
+  // performers skip meals entirely, so photo becomes their last step.
+  const completeFullCheckIn = async () => {
+    await supabase.from("registrations").update({ registered: true }).eq("id", reg.id);
+    setScreen("done");
+  };
+
+  const afterPhotoFull = () => {
+    if (reg.category === "performer") completeFullCheckIn();
+    else setScreen("meals");
+  };
   const afterPhotoRegisterOnly = () => setScreen(reg.category === "performer" ? "register_done" : "register_meals");
 
   const handleBadgeNext = async (b) => {
@@ -44,14 +55,14 @@ export default function DeskApp({ allowSkipPhoto }) {
     }
   };
 
-  const finishFullCheckIn = (status, url) => { setPhotoStatus(status); setPhotoUrl(url); afterPhotoFull(); };
+  const onPhotoConfirmed = (status, url) => { setPhotoStatus(status); setPhotoUrl(url); afterPhotoFull(); };
   const finishRegisterOnlyPhoto = () => afterPhotoRegisterOnly();
 
   if (screen === "search") return <SearchScreen deskMode={deskMode} setDeskMode={setDeskMode} onSelect={selectReg} onWalkIn={() => setScreen("walkin")} />;
   if (screen === "walkin") return <WalkInForm onCancel={() => setScreen("search")} onCreate={createWalkIn} />;
   if (screen === "badge") return <BadgeLink reg={reg} onBack={() => setScreen("search")} onNext={handleBadgeNext} />;
-  if (screen === "photo") return <PhotoCapture reg={reg} allowSkip={allowSkipPhoto} onBack={() => setScreen("badge")} onNext={finishFullCheckIn} />;
-  if (screen === "meals") return <MealChoices reg={reg} onBack={() => setScreen("badge")} onNext={() => setScreen("done")} />;
+  if (screen === "photo") return <PhotoCapture reg={reg} allowSkip={allowSkipPhoto} onBack={() => setScreen("badge")} onNext={onPhotoConfirmed} />;
+  if (screen === "meals") return <MealChoices reg={reg} onBack={() => setScreen("badge")} onNext={completeFullCheckIn} />;
   if (screen === "done") return <Complete reg={reg} badge={badge} photoStatus={photoStatus} photoUrl={photoUrl} onNextGuest={resetToSearch} />;
   if (screen === "register_confirm") return <RegisterOnlyConfirm reg={reg} onBack={() => setScreen("search")} onDone={() => setScreen("register_photo")} />;
   if (screen === "register_photo") return <PhotoCapture reg={reg} allowSkip={allowSkipPhoto} onBack={() => setScreen("register_confirm")} onNext={finishRegisterOnlyPhoto} />;
