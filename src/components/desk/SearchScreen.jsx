@@ -18,11 +18,12 @@ export default function SearchScreen({ deskMode, setDeskMode, onSelect, onWalkIn
     setLoading(true); setError("");
 
     // Server-side search — never fetch the whole table client-side.
-    // Matches name (using the indexed tsvector), phone, or email.
+    // Matches name, phone, email, or badge number (useful for finding
+    // a placeholder record like "VIP Guest G622" by its badge alone).
     supabase
       .from("registrations")
-      .select("id, reg_code, full_name, phone, email, category, registered, badge_status, photo_status")
-      .or(`full_name.ilike.%${trimmed}%,phone.ilike.%${trimmed}%,email.ilike.%${trimmed}%`)
+      .select("id, reg_code, badge_number, full_name, phone, email, category, registered, badge_status, photo_status")
+      .or(`full_name.ilike.%${trimmed}%,phone.ilike.%${trimmed}%,email.ilike.%${trimmed}%,badge_number.ilike.%${trimmed}%`)
       .limit(25)
       .then(({ data, error }) => {
         if (cancelled) return;
@@ -50,7 +51,7 @@ export default function SearchScreen({ deskMode, setDeskMode, onSelect, onWalkIn
       <div className="px-5 pb-4" style={{ background: C.ink }}>
         <div className="flex items-center gap-2 rounded-xl px-3" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}` }}>
           <Search size={16} color={C.ink60} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, phone, or email…"
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, phone, email, or badge no…"
             className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 15.5, padding: "11px 4px", border: "none" }} />
         </div>
       </div>
@@ -58,7 +59,7 @@ export default function SearchScreen({ deskMode, setDeskMode, onSelect, onWalkIn
         {trimmed.length < 2 && (
           <div className="flex flex-col items-center mt-16 gap-2">
             <Search size={28} color={C.ink40} />
-            <div style={{ color: C.ink40, fontSize: 13.5, maxWidth: 220, textAlign: "center" }}>Type a name, phone, or email to search — nothing loads until you do.</div>
+            <div style={{ color: C.ink40, fontSize: 13.5, maxWidth: 220, textAlign: "center" }}>Type a name, phone, email, or badge number to search — nothing loads until you do.</div>
           </div>
         )}
         {error && <div style={{ color: C.alert, fontSize: 13.5 }}>{error}</div>}
@@ -70,7 +71,7 @@ export default function SearchScreen({ deskMode, setDeskMode, onSelect, onWalkIn
             <div className="text-left">
               <div style={{ color: C.parchment, fontSize: 15.5, fontWeight: 600 }}>{r.full_name}</div>
               <div className="flex items-center gap-2 mt-1.5"><PersonTag reg={r} /></div>
-              <div style={{ fontFamily: "JetBrains Mono, monospace", color: C.ink40, fontSize: 11, marginTop: 3 }}>{r.reg_code} · {r.phone}</div>
+              <div style={{ fontFamily: "JetBrains Mono, monospace", color: C.ink40, fontSize: 11, marginTop: 3 }}>{r.badge_number || "no badge"} · {r.phone}</div>
             </div>
             <StatusPill reg={r} />
           </button>
