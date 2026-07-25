@@ -46,11 +46,11 @@ export default function App() {
   }, [role]);
 
   if (auth.loading) {
-    return <div style={{ minHeight: "100vh", background: "#0A0F1A", display: "flex", alignItems: "center", justifyContent: "center", color: C.ink60, fontFamily: "Inter, sans-serif" }}>Loading…</div>;
+    return <div style={{ minHeight: "100dvh", background: "#0A0F1A", display: "flex", alignItems: "center", justifyContent: "center", color: C.ink60, fontFamily: "Inter, sans-serif" }}>Loading…</div>;
   }
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col" style={{ background: C.ink }}>
+    <div className="overflow-hidden flex flex-col" style={{ height: "100dvh", background: C.ink }}>
       {auth.session && auth.crew ? (
         <>
           <div className="flex items-center justify-between px-5 py-2 flex-shrink-0" style={{ background: C.inkSoft, borderBottom: `1px solid ${C.inkLine}` }}>
