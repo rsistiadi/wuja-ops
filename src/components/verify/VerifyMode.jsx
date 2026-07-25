@@ -6,6 +6,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { getBadgePhotoUrl } from "../../lib/photoStorage";
 import { extractBadgeNumber } from "../../lib/qrScan";
 import { lookupByBadgeNumber } from "../../lib/badgeLookup";
+import { personSearchOr } from "../../lib/personSearch";
 import QrScannerView from "../shared/QrScannerView";
 
 export default function VerifyMode({ canEdit }) {
@@ -22,7 +23,7 @@ export default function VerifyMode({ canEdit }) {
     const trimmed = debounced.trim();
     if (trimmed.length < 2) { setResults([]); return; }
     let cancelled = false;
-    supabase.from("registrations").select("*").or(`full_name.ilike.%${trimmed}%,phone.ilike.%${trimmed}%,badge_number.ilike.%${trimmed}%`).limit(20)
+    supabase.from("registrations").select("*").or(personSearchOr(trimmed)).limit(20)
       .then(({ data }) => { if (!cancelled) setResults(data || []); });
     return () => { cancelled = true; };
   }, [debounced]);

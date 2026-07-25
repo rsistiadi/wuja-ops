@@ -83,13 +83,19 @@ export default function EventScanMode() {
       : { color: C.alert, headline: `NOT ALLOWED — ${person.full_name}`, detail: notAllowedDetail(person) };
   };
 
+  const previewManual = (person) => {
+    const allowed = isAllowed(person, cp, namedIds);
+    return allowed
+      ? { allowed: true, color: C.ok, headline: `Would be ALLOWED — ${person.full_name}`, detail: categoryLabel(person) + (person.medical_note ? " · has a medical note" : "") }
+      : { allowed: false, color: C.alert, headline: `NOT ALLOWED — ${person.full_name}`, detail: notAllowedDetail(person) };
+  };
+
   const resolveManual = async (person, reason) => {
-    if (reason === null) return { needsReason: true };
     const allowed = isAllowed(person, cp, namedIds);
     await record(person, allowed, "manual", reason);
     return allowed
       ? { color: C.ok, headline: `ALLOWED (manual) — ${person.full_name}`, detail: `Reason logged: "${reason}"` }
-      : { color: C.alert, headline: `NOT ALLOWED — ${person.full_name}`, detail: `${notAllowedDetail(person)} · Manual entry, reason logged: "${reason}"` };
+      : { color: C.alert, headline: `NOT ALLOWED — ${person.full_name}`, detail: `${notAllowedDetail(person)} · Logged automatically, no reason needed.` };
   };
 
   if (!cp) {
@@ -114,10 +120,10 @@ export default function EventScanMode() {
       <div className="px-5 pb-7 pt-3 flex flex-col gap-2" style={{ background: C.inkSoft, position: "relative" }}>
         <div style={{ color: C.ink40, fontSize: 12.5, textAlign: "center" }}>Scanned {stats.scanned} · Allowed {stats.allowed} · Denied {stats.denied}</div>
         <button onClick={() => setSheet("scan")} className="w-full flex items-center justify-center gap-2.5 rounded-xl" style={{ background: C.gold, color: C.ink, fontWeight: 700, fontSize: 16.5, padding: "16px 0", border: "none", cursor: "pointer" }}><ScanLine size={20} /> SCAN BADGE</button>
-        <button onClick={() => setSheet("manual")} className="w-full flex items-center justify-center gap-2 rounded-xl" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, color: C.parchment, fontWeight: 700, fontSize: 13.5, padding: "10px 0", cursor: "pointer" }}><UserPlus size={14} /> Manual add (badge unavailable)</button>
+        <button onClick={() => setSheet("manual")} className="w-full flex items-center justify-center gap-2 rounded-xl" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, color: C.parchment, fontWeight: 700, fontSize: 13.5, padding: "10px 0", cursor: "pointer" }}><UserPlus size={14} /> Manual Check (no badge available)</button>
 
-        {sheet === "scan" && <ScanSheet title="Scan badge" onClose={() => setSheet(null)} onResolve={resolveScan} requireReasonAlways={false} useCamera={true} />}
-        {sheet === "manual" && <ScanSheet title="Manual add" onClose={() => setSheet(null)} onResolve={resolveManual} requireReasonAlways={true} useCamera={false} />}
+        {sheet === "scan" && <ScanSheet title="Scan badge" onClose={() => setSheet(null)} onResolve={resolveScan} useCamera={true} />}
+        {sheet === "manual" && <ScanSheet title="Find Person" onClose={() => setSheet(null)} onPreview={previewManual} onResolve={resolveManual} useCamera={false} />}
       </div>
     </div>
   );

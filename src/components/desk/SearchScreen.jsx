@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Search, UserPlus } from "lucide-react";
+import { Search, UserPlus, ShieldOff, X } from "lucide-react";
 import { C } from "../../lib/tokens";
 import { TopBar, PersonTag, StatusPill, useDebouncedValue } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
+import { personSearchOr } from "../../lib/personSearch";
 
 export default function SearchScreen({ deskMode, setDeskMode, onSelect, onWalkIn }) {
   const [q, setQ] = useState("");
@@ -10,6 +11,9 @@ export default function SearchScreen({ deskMode, setDeskMode, onSelect, onWalkIn
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [denying, setDenying] = useState(false);
+  const [denyReason, setDenyReason] = useState("");
+  const [denySaving, setDenySaving] = useState(false);
 
   useEffect(() => {
     const trimmed = debounced.trim();
@@ -23,7 +27,7 @@ export default function SearchScreen({ deskMode, setDeskMode, onSelect, onWalkIn
     supabase
       .from("registrations")
       .select("id, reg_code, badge_number, full_name, phone, email, category, registered, badge_status, photo_status")
-      .or(`full_name.ilike.%${trimmed}%,phone.ilike.%${trimmed}%,email.ilike.%${trimmed}%,badge_number.ilike.%${trimmed}%`)
+      .or(personSearchOr(trimmed))
       .limit(25)
       .then(({ data, error }) => {
         if (cancelled) return;
@@ -36,6 +40,16 @@ export default function SearchScreen({ deskMode, setDeskMode, onSelect, onWalkIn
   }, [debounced]);
 
   const trimmed = debounced.trim();
+  const noResults = trimmed.length >= 2 && !loading && results.length === 0 && !error;
+
+  const confirmDeny = async () => {
+    if (!denyReason.trim()) return;
+    setDenySaving(true); setError("");
+    const { error } = await supabase.from("walkin_denials").insert({ searched_name: trimmed, reason: denyReason.trim() });
+    setDenySaving(false);
+    if (error) { setError(error.message); return; }
+    setDenying(false); setDenyReason(""); setQ("");
+  };
 
   return (
     <div className="flex-1 flex flex-col">
@@ -63,8 +77,8 @@ export default function SearchScreen({ deskMode, setDeskMode, onSelect, onWalkIn
           </div>
         )}
         {error && <div style={{ color: C.alert, fontSize: 13.5 }}>{error}</div>}
-        {trimmed.length >= 2 && !loading && results.length === 0 && !error && (
-          <div style={{ color: C.ink40, fontSize: 14.5, textAlign: "center", marginTop: 40 }}>No matches — check spelling or register a walk-in below.</div>
+        {noResults && !denying && (
+          <div style={{ color: C.ink40, fontSize: 14.5, textAlign: "center", marginTop: 40 }}>No matches — check spelling, or register a walk-in / deny below.</div>
         )}
         {results.map((r) => (
           <button key={r.id} onClick={() => onSelect(r)} className="flex items-center justify-between rounded-xl px-4 py-3.5" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
@@ -77,12 +91,35 @@ export default function SearchScreen({ deskMode, setDeskMode, onSelect, onWalkIn
           </button>
         ))}
       </div>
-      <div className="px-5 pb-6 pt-3" style={{ background: C.inkSoft }}>
-        <button onClick={onWalkIn} className="w-full flex items-center justify-center gap-2 rounded-xl"
-          style={{ background: C.ink, border: `1px dashed ${C.gold}66`, color: C.gold, fontWeight: 700, fontSize: 13.5, padding: "11px 0", cursor: "pointer" }}>
-          <UserPlus size={15} /> Register a walk-in
-        </button>
-      </div>
+      {noResults && (
+        <div className="px-5 pb-6 pt-3" style={{ background: C.inkSoft }}>
+          {!denying ? (
+            <div className="flex gap-2">
+              <button onClick={onWalkIn} className="flex-1 flex items-center justify-center gap-2 rounded-xl"
+                style={{ background: C.ink, border: `1px dashed ${C.gold}66`, color: C.gold, fontWeight: 700, fontSize: 13.5, padding: "11px 0", cursor: "pointer" }}>
+                <UserPlus size={15} /> Register a walk-in
+              </button>
+              <button onClick={() => setDenying(true)} className="flex-1 flex items-center justify-center gap-2 rounded-xl"
+                style={{ background: C.ink, border: `1px solid ${C.inkLine}`, color: C.ink60, fontWeight: 700, fontSize: 13.5, padding: "11px 0", cursor: "pointer" }}>
+                <ShieldOff size={15} /> Deny
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span style={{ color: C.parchment, fontSize: 13.5, fontWeight: 600 }}>Deny "{trimmed}"</span>
+                <button onClick={() => { setDenying(false); setDenyReason(""); }} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={16} color={C.ink40} /></button>
+              </div>
+              <input autoFocus value={denyReason} onChange={(e) => setDenyReason(e.target.value)} placeholder="Reason (required)"
+                className="w-full rounded-lg outline-none" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, color: C.parchment, fontSize: 13.5, padding: "9px 11px" }} />
+              <button onClick={confirmDeny} disabled={!denyReason.trim() || denySaving} className="rounded-lg"
+                style={{ background: denyReason.trim() ? C.alert : C.inkLine, color: "#fff", fontSize: 14.5, fontWeight: 700, padding: "11px 0", opacity: denyReason.trim() ? 1 : 0.6, border: "none", cursor: denyReason.trim() ? "pointer" : "default" }}>
+                {denySaving ? "Logging…" : "Confirm Deny"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

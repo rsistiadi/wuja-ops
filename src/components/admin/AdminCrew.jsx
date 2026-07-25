@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { AlertTriangle, UserCircle2, RefreshCw, X, Check } from "lucide-react";
+import { AlertTriangle, UserCircle2, RefreshCw, X, Check, Search } from "lucide-react";
 import { C, CATEGORY_META, categoryLabel } from "../../lib/tokens";
 import { Dropdown, PersonAvatar, PersonTag, StatusPill } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
@@ -34,7 +34,7 @@ export default function AdminCrew({ callCrewAdmin, isSuperAdmin }) {
     // fetch those in one batch rather than one request per person.
     const regIds = (data || []).map((c) => c.registration_id).filter(Boolean);
     if (regIds.length) {
-      const { data: regs } = await supabase.from("registrations").select("id, full_name, category, photo_status, photo_url, badge_status, badge_number").in("id", regIds);
+      const { data: regs } = await supabase.from("registrations").select("id, full_name, category, photo_status, photo_url, badge_status, badge_number, phone").in("id", regIds);
       const map = {};
       for (const r of regs || []) map[r.id] = r;
       setRegById(map);
@@ -53,9 +53,21 @@ export default function AdminCrew({ callCrewAdmin, isSuperAdmin }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [crewSearch, setCrewSearch] = useState("");
   const pending = crew.filter((c) => c.status === "pending");
   const active = crew.filter((c) => c.status === "active");
   const deactivated = crew.filter((c) => c.status === "deactivated");
+
+  const activeFiltered = (() => {
+    const q = crewSearch.trim().toLowerCase();
+    if (!q) return active;
+    return active.filter((c) => {
+      const reg = regById[c.registration_id];
+      return c.full_name.toLowerCase().includes(q)
+        || reg?.phone?.toLowerCase().includes(q)
+        || reg?.badge_number?.toLowerCase().includes(q);
+    });
+  })();
 
   const approve = async (c) => {
     setBusy(true); setError("");
@@ -150,7 +162,17 @@ export default function AdminCrew({ callCrewAdmin, isSuperAdmin }) {
 
       <div>
         <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>ACTIVE CREW · {active.length}</div>
-        {active.map((c) => (
+        {active.length > 0 && (
+          <div className="flex items-center gap-2 rounded-xl px-3 mb-2.5" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
+            <Search size={14} color={C.ink40} />
+            <input value={crewSearch} onChange={(e) => setCrewSearch(e.target.value)} placeholder="Search active crew — name, phone, or badge no…"
+              className="flex-1 bg-transparent outline-none" style={{ color: C.parchment, fontSize: 13.5, padding: "9px 4px", border: "none" }} />
+          </div>
+        )}
+        {crewSearch.trim() && activeFiltered.length === 0 && (
+          <div style={{ color: C.ink40, fontSize: 13, textAlign: "center", padding: "16px 0" }}>No active crew match "{crewSearch.trim()}".</div>
+        )}
+        {activeFiltered.map((c) => (
           <div key={c.id} className="rounded-xl p-3.5 mb-2" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
             <div className="flex items-center justify-between">
               <button onClick={() => setSelected(c)} className="flex items-center gap-3 flex-1 text-left" style={{ background: "none", border: "none", cursor: "pointer" }}>

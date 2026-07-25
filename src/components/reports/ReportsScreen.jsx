@@ -21,6 +21,7 @@ export default function ReportsScreen() {
   const [loading, setLoading] = useState(true);
   const [busDetail, setBusDetail] = useState(null); // { bus } while a detail sheet is open
   const [statusDetail, setStatusDetail] = useState(null); // { group: 'participant'|'crew', status: 'pending'|... }
+  const [walkInDetail, setWalkInDetail] = useState(null); // { paymentStatus: 'free'|'unpaid'|'paid'|null }
   const [checkpointDetail, setCheckpointDetail] = useState(null); // { checkpoint }
 
   useEffect(() => {
@@ -145,14 +146,14 @@ export default function ReportsScreen() {
         <div>
           <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>WALK-IN REGISTRATIONS</div>
           <div className="rounded-xl p-3.5" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
-            <div className="flex items-center justify-between mb-3">
+            <button onClick={() => setWalkInDetail({ paymentStatus: null })} className="w-full flex items-center justify-between mb-3" style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
               <span style={{ color: C.parchment, fontSize: 14.5, fontWeight: 700 }}>{walkInStats.total} total</span>
               <span style={{ fontFamily: "JetBrains Mono, monospace", color: C.ok, fontSize: 13, fontWeight: 700 }}>Rp {walkInStats.collected.toLocaleString("id-ID")} collected</span>
-            </div>
+            </button>
             <div className="grid grid-cols-3 gap-2">
-              <Stat label="Free" value={walkInStats.free} color={C.ink40} />
-              <Stat label="Not Paid" value={walkInStats.unpaid} color={C.alert} />
-              <Stat label="Paid" value={walkInStats.paid} color={C.ok} />
+              <Stat label="Free" value={walkInStats.free} color={C.ink40} onClick={() => setWalkInDetail({ paymentStatus: "free" })} />
+              <Stat label="Not Paid" value={walkInStats.unpaid} color={C.alert} onClick={() => setWalkInDetail({ paymentStatus: "unpaid" })} />
+              <Stat label="Paid" value={walkInStats.paid} color={C.ok} onClick={() => setWalkInDetail({ paymentStatus: "paid" })} />
             </div>
           </div>
         </div>
@@ -208,6 +209,7 @@ export default function ReportsScreen() {
 
       {busDetail && <BusDetailSheet bus={busDetail.bus} onClose={() => setBusDetail(null)} />}
       {statusDetail && <StatusDetailSheet group={statusDetail.group} status={statusDetail.status} onClose={() => setStatusDetail(null)} />}
+      {walkInDetail && <WalkInDetailSheet paymentStatus={walkInDetail.paymentStatus} onClose={() => setWalkInDetail(null)} />}
       {checkpointDetail && <CheckpointDetailSheet checkpoint={checkpointDetail.checkpoint} onClose={() => setCheckpointDetail(null)} />}
     </div>
   );
@@ -345,6 +347,67 @@ function StatusDetailSheet({ group, status, onClose }) {
                 <div style={{ color: C.ink40, fontSize: 11.5, marginTop: 2 }}>{p.phone || "— no phone on file —"}</div>
               </div>
               <PersonTag reg={p} />
+            </div>
+          )}
+        />
+      )}
+    </div>
+  );
+}
+
+function WalkInDetailSheet({ paymentStatus, onClose }) {
+  const [people, setPeople] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      let q = supabase.from("registrations").select("id, full_name, phone, category, payment_status, payment_amount").like("reg_code", "WUJA2026-W%");
+      if (paymentStatus) q = q.eq("payment_status", paymentStatus);
+      const { data, error } = await q.order("full_name");
+      if (cancelled) return;
+      if (error) { setError(error.message); setLoading(false); return; }
+      setError("");
+      setPeople(data || []);
+      setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [paymentStatus]);
+
+  const labels = { free: "Free", unpaid: "Not Paid", paid: "Paid" };
+  const title = `Walk-ins — ${paymentStatus ? labels[paymentStatus] : "All"}`;
+
+  return (
+    <div className="flex flex-col" style={{ position: "fixed", inset: 0, zIndex: 30, background: C.ink }}>
+      <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${C.inkLine}` }}>
+        <div>
+          <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 17, fontWeight: 600 }}>{title}</div>
+          <div style={{ color: C.ink40, fontSize: 12.5 }}>{people.length} {people.length === 1 ? "person" : "people"}</div>
+        </div>
+        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={20} color={C.ink40} /></button>
+      </div>
+      {loading && <div style={{ color: C.ink40, fontSize: 13.5, padding: "16px 20px" }}>Loading…</div>}
+      {error && <div style={{ color: C.alert, fontSize: 13.5, padding: "16px 20px" }}>Couldn't load: {error}</div>}
+      {!loading && !error && (
+        <VirtualList
+          items={people}
+          rowHeight={70}
+          searchKeys={["full_name", "phone"]}
+          searchPlaceholder="Search name or phone…"
+          emptyLabel="No walk-ins in this bucket."
+          renderRow={(p) => (
+            <div className="rounded-xl px-4 py-3 h-full flex items-center justify-between" style={{ background: C.inkSoft, border: `1px solid ${C.inkLine}` }}>
+              <div>
+                <div style={{ color: C.parchment, fontSize: 13.5, fontWeight: 600 }}>{p.full_name}</div>
+                <div style={{ color: C.ink40, fontSize: 11.5, marginTop: 2 }}>{p.phone || "— no phone on file —"}</div>
+              </div>
+              <div className="text-right">
+                <PersonTag reg={p} />
+                {p.payment_status === "paid" && <div style={{ fontFamily: "JetBrains Mono, monospace", color: C.ok, fontSize: 11.5, marginTop: 4 }}>Rp {Number(p.payment_amount || 0).toLocaleString("id-ID")}</div>}
+              </div>
             </div>
           )}
         />

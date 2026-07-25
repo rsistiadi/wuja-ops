@@ -3,6 +3,7 @@ import { ArrowRight, ArrowLeft, Search, X, AlertTriangle } from "lucide-react";
 import { C, genRegCode, CATEGORY_META } from "../../lib/tokens";
 import { TopBar, PrimaryButton, Dropdown } from "../shared/UI";
 import { CATEGORY_OPTIONS, PERFORMER_COLOR_OPTIONS, PERFORMER_COLOR_VENUE } from "../../lib/checkpointAccess";
+import { personSearchOr } from "../../lib/personSearch";
 import { supabase } from "../../lib/supabaseClient";
 
 export default function WalkInForm({ onCancel, onCreate }) {
@@ -22,7 +23,7 @@ export default function WalkInForm({ onCancel, onCreate }) {
 
   useEffect(() => {
     if (category !== "accompanying" || linkedQuery.trim().length < 2) { setLinkedResults([]); return; }
-    supabase.from("registrations").select("id, full_name, category").ilike("full_name", `%${linkedQuery.trim()}%`).limit(15)
+    supabase.from("registrations").select("id, full_name, category").or(personSearchOr(linkedQuery)).limit(15)
       .then(({ data }) => setLinkedResults(data || []));
   }, [category, linkedQuery]);
 
