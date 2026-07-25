@@ -97,8 +97,8 @@ export default function ScanSheet({ title, onClose, onPreview, onResolve, useCam
   }
 
   return (
-    <div className="flex items-end" style={{ position: "fixed", inset: 0, zIndex: 30, background: "rgba(10,15,26,0.82)" }}>
-      <div className="w-full rounded-t-2xl p-5" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, maxHeight: "88%", display: "flex", flexDirection: "column" }}>
+    <div className="flex items-start" style={{ position: "fixed", inset: 0, zIndex: 30, background: "rgba(10,15,26,0.82)" }}>
+      <div className="w-full rounded-b-2xl p-5" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, maxHeight: "88%", display: "flex", flexDirection: "column" }}>
         <div className="flex items-center justify-between mb-3">
           <span style={{ color: C.parchment, fontSize: 15.5, fontWeight: 700 }}>{title}</span>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.ink40} /></button>
