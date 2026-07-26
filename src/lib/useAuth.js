@@ -60,7 +60,7 @@ export function useAuth() {
     if (query.trim().length < 2) return [];
     const { data, error } = await supabase
       .from("signup_eligible_directory")
-      .select("id, full_name")
+      .select("id, full_name, photo_status")
       .ilike("full_name", `%${query.trim()}%`)
       .limit(15);
     if (error) throw error;
@@ -83,12 +83,14 @@ export function useAuth() {
   // name check) happens server-side and can't be bypassed by a
   // tampered client. ---
   const requestSignup = useCallback(async ({ fullName, requestedRole, pin, registrationId, category, performerColor, photoBlob }) => {
-    const photo_base64 = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(photoBlob);
-    });
+    const photo_base64 = photoBlob
+      ? await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(photoBlob);
+        })
+      : null;
     const res = await fetch(`${FUNCTIONS_URL}/crew-self-register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

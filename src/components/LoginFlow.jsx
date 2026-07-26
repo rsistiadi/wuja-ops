@@ -75,7 +75,12 @@ export default function LoginFlow({ auth }) {
     if (/^(\d)\1+$/.test(pin1) || "0123456789".includes(pin1) || "9876543210".includes(pin1)) {
       setError("That PIN is too predictable — avoid repeated or sequential digits."); return;
     }
-    setError(""); setStage("photo");
+    setError("");
+    // Already have a photo on file (e.g. a supervised Desk check-in
+    // photo) — reuse it rather than asking for a new one, so it's
+    // never silently replaced by an unsupervised signup selfie.
+    if (matchedReg?.photo_status === "captured") finishSignup();
+    else setStage("photo");
   };
 
   const capturePhoto = async () => {
@@ -205,8 +210,13 @@ export default function LoginFlow({ auth }) {
                 )}
               </>
             )}
+            {matchedReg?.photo_status === "captured" && (
+              <div style={{ color: C.ok, fontSize: 12.5 }}>✓ We already have a photo on file for you — no need to retake it.</div>
+            )}
             {error && <div style={{ color: C.alert, fontSize: 13.5 }}>{error}</div>}
-            <PrimaryButton icon={ArrowRight} disabled={pin1.length < 6} onClick={submitPin}>Continue to photo</PrimaryButton>
+            <PrimaryButton icon={ArrowRight} disabled={pin1.length < 6 || busy} onClick={submitPin}>
+              {busy ? "Submitting…" : matchedReg?.photo_status === "captured" ? "Submit request" : "Continue to photo"}
+            </PrimaryButton>
           </>
         )}
 
