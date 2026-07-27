@@ -94,18 +94,45 @@ export default function ReportsScreen() {
       const buses = naturalSortBy(busesRes.data, (b) => b.name);
       const legs = legsRes.data || [];
 
+      // Two queries total, not one per bus×leg combination (that was
+      // ~600 sequential round trips) — fetch every roster assignment
+      // and every trip status once, then compute all the bus/leg
+      // combinations from that in memory.
+      const [rosterRes, allStatusRes] = await Promise.all([
+        supabase.from("registrations").select("id, assigned_bus_id").not("assigned_bus_id", "is", null),
+        supabase.from("bus_trip_status").select("registration_id, trip_leg_id, bus_id, status"),
+      ]);
+      const rosterByBus = {};
+      for (const r of rosterRes.data || []) (rosterByBus[r.assigned_bus_id] ??= []).push(r.id);
+      const allStatuses = allStatusRes.data || [];
+
       const busRows = [];
       for (const bus of buses) {
-        const { data: roster } = await supabase.from("registrations").select("id").eq("assigned_bus_id", bus.id);
-        const rosterIds = (roster || []).map((r) => r.id);
-        const legStats = [];
+        const rosterIds = rosterByBus[bus.id] || [];
+        const rosterIdSet = new Set(rosterIds);
+        const hasRoster = rosterIds.length > 0;
+        const legStatsAll = [];
         for (const leg of legs) {
-          const { data: statuses } = await supabase.from("bus_trip_status").select("registration_id, bus_id, status").eq("trip_leg_id", leg.id).in("registration_id", rosterIds.length ? rosterIds : ["00000000-0000-0000-0000-000000000000"]);
-          const boarded = (statuses || []).filter((s) => s.status === "boarded" && s.bus_id === bus.id).length;
-          const notRiding = (statuses || []).filter((s) => s.status === "not_riding").length;
-          const elsewhere = (statuses || []).filter((s) => s.status === "boarded" && s.bus_id !== bus.id).length;
-          legStats.push({ leg, boarded, notRiding, elsewhere, unaccounted: rosterIds.length - boarded - notRiding - elsewhere });
+          const legStatuses = allStatuses.filter((s) => s.trip_leg_id === leg.id);
+          // Boarded count comes straight from actual scans on this bus —
+          // correct whether or not anyone was pre-assigned. Not
+          // riding / unaccounted only mean anything when there's a
+          // real roster to check completeness against.
+          const boardedHere = legStatuses.filter((s) => s.bus_id === bus.id && s.status === "boarded").length;
+          let notRiding = 0, unaccounted = 0;
+          if (hasRoster) {
+            const rosterStatuses = legStatuses.filter((s) => rosterIdSet.has(s.registration_id));
+            notRiding = rosterStatuses.filter((s) => s.status === "not_riding").length;
+            const elsewhere = rosterStatuses.filter((s) => s.status === "boarded" && s.bus_id !== bus.id).length;
+            unaccounted = rosterIds.length - boardedHere - notRiding - elsewhere;
+          }
+          legStatsAll.push({ leg, boarded: boardedHere, notRiding, unaccounted, hasRoster });
         }
+        // Keep only legs that actually have something recorded — a
+        // rostered (YW) bus that simply hasn't left yet for a given
+        // leg shouldn't clutter the report with an all-zero row any
+        // more than an unused general bus should.
+        const legStats = legStatsAll.filter((s) => s.boarded > 0 || s.notRiding > 0);
         busRows.push({ bus, rosterCount: rosterIds.length, legStats });
       }
       if (!cancelled) setBusReport(busRows);
@@ -200,14 +227,15 @@ export default function ReportsScreen() {
         <div>
           <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>BUS TRIPS <span style={{ fontWeight: 500, textTransform: "none" }}>— tap for detail</span></div>
           {busReport.length === 0 && !loading && <div style={{ color: C.ink40, fontSize: 13.5 }}>No buses configured.</div>}
-          {busReport.map(({ bus, rosterCount, legStats }) => (
+          {busReport.filter((r) => r.legStats.length > 0).map(({ bus, rosterCount, legStats }) => (
             <button key={bus.id} onClick={() => setBusDetail({ bus })} className="w-full text-left rounded-xl p-3.5 mb-2" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, cursor: "pointer" }}>
-              <div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 700, marginBottom: 8 }}>{bus.name} <span style={{ color: C.ink40, fontWeight: 500 }}>· roster {rosterCount}</span></div>
-              {legStats.map(({ leg, boarded, notRiding, elsewhere, unaccounted }) => (
+              <div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 700, marginBottom: 8 }}>{bus.name} {rosterCount > 0 && <span style={{ color: C.ink40, fontWeight: 500 }}>· roster {rosterCount}</span>}</div>
+              {legStats.map(({ leg, boarded, notRiding, unaccounted, hasRoster }) => (
                 <div key={leg.id} className="flex items-center justify-between py-1.5" style={{ borderTop: `1px dashed ${C.inkLine}` }}>
                   <span style={{ color: C.ink60, fontSize: 12.5 }}>{leg.label}</span>
                   <span style={{ fontFamily: "JetBrains Mono, monospace", color: C.ink40, fontSize: 12.5 }}>
-                    <span style={{ color: C.ok }}>{boarded}</span> boarded · <span style={{ color: C.ink60 }}>{notRiding}</span> not riding · <span style={{ color: C.guest }}>{elsewhere}</span> elsewhere · <span style={{ color: unaccounted ? C.alert : C.ok }}>{unaccounted}</span> unacc.
+                    <span style={{ color: C.ok }}>{boarded}</span> boarded
+                    {hasRoster && <> · <span style={{ color: C.ink60 }}>{notRiding}</span> not riding · <span style={{ color: unaccounted ? C.alert : C.ok }}>{unaccounted}</span> unacc.</>}
                   </span>
                 </div>
               ))}
@@ -250,6 +278,7 @@ function BusDetailSheet({ bus, onClose }) {
   const [legs, setLegs] = useState([]);
   const [legId, setLegId] = useState("");
   const [roster, setRoster] = useState([]);
+  const [addedRiders, setAddedRiders] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -269,20 +298,33 @@ function BusDetailSheet({ bus, onClose }) {
     if (error) { setError(error.message); setLoading(false); return; }
     setError("");
     setStatuses(data || []);
+
+    // Anyone who boarded this specific bus but wasn't pre-assigned to
+    // it — the whole passenger list for a no-roster (general) bus, or
+    // an "extra" rider on a rostered one.
+    const rosterIds = new Set(roster.map((r) => r.id));
+    const addedIds = (data || []).filter((s) => s.bus_id === bus.id && s.status === "boarded" && !rosterIds.has(s.registration_id)).map((s) => s.registration_id);
+    if (addedIds.length) {
+      const { data: addedRegs } = await supabase.from("registrations").select("id, full_name, category, phone").in("id", addedIds);
+      setAddedRiders(addedRegs || []);
+    } else {
+      setAddedRiders([]);
+    }
     setLoading(false);
-  }, [legId]);
+  }, [legId, bus.id, roster]);
   useEffect(() => { refetch(); }, [refetch]);
 
   const statusFor = (id) => statuses.find((s) => s.registration_id === id);
 
   const rosterWithStatus = useMemo(() => roster.map((p) => ({ ...p, _rec: statusFor(p.id) })), [roster, statuses]);
+  const allRows = useMemo(() => [...rosterWithStatus, ...addedRiders.map((p) => ({ ...p, _rec: statusFor(p.id), _added: true }))], [rosterWithStatus, addedRiders, statuses]);
 
   return (
     <div className="flex flex-col" style={{ position: "fixed", inset: 0, zIndex: 30, background: C.ink }}>
       <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${C.inkLine}` }}>
         <div>
           <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 17, fontWeight: 600 }}>{bus.name} — Full Detail</div>
-          <div style={{ color: C.ink40, fontSize: 12.5 }}>{roster.length} on roster</div>
+          <div style={{ color: C.ink40, fontSize: 12.5 }}>{roster.length > 0 ? `${roster.length} on roster` : "No roster — showing everyone who boarded"}{addedRiders.length > 0 ? ` · ${addedRiders.length} extra` : ""}</div>
         </div>
         <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={20} color={C.ink40} /></button>
       </div>
@@ -293,15 +335,16 @@ function BusDetailSheet({ bus, onClose }) {
       {error && <div style={{ color: C.alert, fontSize: 13.5, padding: "0 20px" }}>Couldn't load trip status: {error}</div>}
       {!loading && (
         <VirtualList
-          items={rosterWithStatus}
+          items={allRows}
           rowHeight={78}
           searchKeys={["full_name", "phone"]}
-          searchPlaceholder="Search roster…"
+          searchPlaceholder="Search riders…"
           emptyLabel="No matches."
           renderRow={(p) => {
             const rec = p._rec;
             let pill = { text: "UNACCOUNTED", color: C.alert };
-            if (rec?.status === "not_riding") pill = { text: "NOT RIDING", color: C.ink60 };
+            if (p._added) pill = { text: "BOARDED (EXTRA)", color: C.guest };
+            else if (rec?.status === "not_riding") pill = { text: "NOT RIDING", color: C.ink60 };
             else if (rec?.status === "boarded" && rec.bus_id === bus.id) pill = { text: "BOARDED", color: C.ok };
             else if (rec?.status === "boarded" && rec.bus_id !== bus.id) pill = { text: "ON ANOTHER BUS", color: C.guest };
             return (
