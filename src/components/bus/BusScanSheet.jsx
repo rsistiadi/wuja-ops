@@ -56,7 +56,7 @@ export default function BusScanSheet({ bus, buses, roster, legId, onClose, onCha
   };
 
   const routePerson = async (p, method) => {
-    const exception = p.assigned_bus_id !== bus.id;
+    const exception = !!p.assigned_bus_id && p.assigned_bus_id !== bus.id;
     if (!exception) { await boardPerson(p, method); return; }
     setPerson(p); setReason(""); setStage("action");
   };
