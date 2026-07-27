@@ -26,18 +26,18 @@ export default function DeskApp({ allowSkipPhoto }) {
 
   // registered:true is the real "fully checked in" signal, so it's
   // written here — at the actual last step of Full Check-in — rather
-  // than at the badge scan. Meals is normally that last step;
-  // performers skip meals entirely, so photo becomes their last step.
+  // than at the badge scan. MealChoices decides for itself whether
+  // this person is actually eligible for either meal (based on real
+  // venue access, not a category hardcoded here) and skips straight
+  // through if not — so every category, performers included, is
+  // handled uniformly by that one check instead of two places agreeing.
   const completeFullCheckIn = async () => {
     await supabase.from("registrations").update({ registered: true }).eq("id", reg.id);
     setScreen("done");
   };
 
-  const afterPhotoFull = () => {
-    if (reg.category === "performer") completeFullCheckIn();
-    else setScreen("meals");
-  };
-  const afterPhotoRegisterOnly = () => setScreen(reg.category === "performer" ? "register_done" : "register_meals");
+  const afterPhotoFull = () => setScreen("meals");
+  const afterPhotoRegisterOnly = () => setScreen("register_meals");
 
   const handleBadgeNext = async (b) => {
     setBadge(b);

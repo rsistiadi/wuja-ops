@@ -50,14 +50,17 @@ export default function ScanSheet({ title, onClose, onPreview, onResolve, useCam
 
   const selectPerson = async (p) => {
     setPerson(p);
+    const url = p.photo_status === "captured" && p.photo_url ? await getBadgePhotoUrl(p.photo_url) : null;
+    setPhotoUrl(url);
     if (useCamera) {
-      // Badge scan already proves identity — resolve straight away, no preview needed.
+      // Badge scan already proves identity, so no preview/confirm step
+      // — but the result screen still shows their photo (or a clear
+      // "no photo on file" warning) for a quick visual double-check.
       const res = await onResolve(p, null);
       setResultView(res); setStep("result");
       return;
     }
     setPreview(onPreview(p));
-    setPhotoUrl(p.photo_status === "captured" && p.photo_url ? await getBadgePhotoUrl(p.photo_url) : null);
     setStep("preview");
   };
 
@@ -134,10 +137,11 @@ export default function ScanSheet({ title, onClose, onPreview, onResolve, useCam
         {step === "preview" && preview && (
           <div className="flex flex-col gap-3 overflow-y-auto">
             <div className="flex flex-col items-center gap-2 py-2">
-              <div className="rounded-full overflow-hidden flex items-center justify-center flex-shrink-0" style={{ width: 88, height: 88, background: C.inkSoft, border: `2px solid ${preview.color}` }}>
-                {photoUrl ? <img src={photoUrl} alt={person.full_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <ShieldAlert size={30} color={C.ink40} />}
+              <div className="rounded-full overflow-hidden flex items-center justify-center flex-shrink-0" style={{ width: 128, height: 128, background: C.inkSoft, border: `3px solid ${preview.color}` }}>
+                {photoUrl ? <img src={photoUrl} alt={person.full_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <ShieldAlert size={36} color={C.gold} />}
               </div>
-              <div style={{ color: C.parchment, fontSize: 16, fontWeight: 700, textAlign: "center" }}>{person.full_name}</div>
+              {!photoUrl && <div style={{ color: C.gold, fontSize: 12, fontWeight: 700 }}>⚠ No photo on file — verify identity another way</div>}
+              <div style={{ color: C.parchment, fontSize: 18, fontWeight: 700, textAlign: "center" }}>{person.full_name}</div>
               <PersonTag reg={person} />
             </div>
             <div className="rounded-xl px-4 py-3" style={{ background: `${preview.color}1f`, border: `1px solid ${preview.color}` }}>
@@ -167,6 +171,16 @@ export default function ScanSheet({ title, onClose, onPreview, onResolve, useCam
 
         {step === "result" && resultView && (
           <div className="flex flex-col gap-3">
+            {person && (
+              <div className="flex flex-col items-center gap-2 py-2">
+                <div className="rounded-full overflow-hidden flex items-center justify-center flex-shrink-0" style={{ width: 128, height: 128, background: C.inkSoft, border: `3px solid ${resultView.color}` }}>
+                  {photoUrl ? <img src={photoUrl} alt={person.full_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <ShieldAlert size={36} color={C.gold} />}
+                </div>
+                {!photoUrl && <div style={{ color: C.gold, fontSize: 12, fontWeight: 700 }}>⚠ No photo on file — verify identity another way</div>}
+                <div style={{ color: C.parchment, fontSize: 18, fontWeight: 700, textAlign: "center" }}>{person.full_name}</div>
+                <PersonTag reg={person} />
+              </div>
+            )}
             <div className="rounded-xl px-4 py-3" style={{ background: `${resultView.color}1f`, border: `1px solid ${resultView.color}` }}>
               <div style={{ color: resultView.color, fontSize: 15.5, fontWeight: 700 }}>{resultView.headline}</div>
               <div style={{ color: C.ink60, fontSize: 13.5, marginTop: 4 }}>{resultView.detail}</div>

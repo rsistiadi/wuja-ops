@@ -24,7 +24,7 @@ export default function RegisterOnlyConfirm({ reg, onBack, onDone }) {
         <div className="rounded-2xl p-4" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
           <PersonTag reg={reg} />
           <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 20, fontWeight: 600, marginTop: 8 }}>{reg.full_name}</div>
-          <div style={{ fontFamily: "JetBrains Mono, monospace", color: C.ink40, fontSize: 12.5, marginTop: 2 }}>{reg.reg_code}</div>
+          <div style={{ fontFamily: "JetBrains Mono, monospace", color: reg.badge_number ? C.ink40 : C.gold, fontSize: 12.5, marginTop: 2 }}>{reg.badge_number || "No badge assigned yet"}</div>
         </div>
         <div className="rounded-xl px-4 py-3.5 flex items-start gap-2.5" style={{ background: `${C.gold}14`, border: `1px solid ${C.gold}44` }}>
           <AlertTriangle size={16} color={C.gold} style={{ marginTop: 1, flexShrink: 0 }} />

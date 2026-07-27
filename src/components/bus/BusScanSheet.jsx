@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { X, Search, AlertTriangle, ScanLine } from "lucide-react";
+import { X, Search, AlertTriangle, ScanLine, ShieldAlert } from "lucide-react";
 import { C } from "../../lib/tokens";
 import { PersonTag } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
 import { extractBadgeNumber } from "../../lib/qrScan";
 import { lookupByBadgeNumber } from "../../lib/badgeLookup";
 import { personSearchOr } from "../../lib/personSearch";
+import { getBadgePhotoUrl } from "../../lib/photoStorage";
 import QrScannerView from "../shared/QrScannerView";
 
 export default function BusScanSheet({ bus, buses, roster, legId, onClose, onChanged }) {
@@ -14,16 +15,17 @@ export default function BusScanSheet({ bus, buses, roster, legId, onClose, onCha
   const [searchResults, setSearchResults] = useState([]);
   const [searchError, setSearchError] = useState("");
   const [person, setPerson] = useState(null);
+  const [photoUrl, setPhotoUrl] = useState(null);
   const [reason, setReason] = useState("");
   const [resultView, setResultView] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const reset = () => { setStage("scanning"); setQuery(""); setSearchResults([]); setPerson(null); setReason(""); setResultView(null); };
+  const reset = () => { setStage("scanning"); setQuery(""); setSearchResults([]); setPerson(null); setPhotoUrl(null); setReason(""); setResultView(null); };
 
   const runSearch = async (q) => {
     setQuery(q);
     if (q.trim().length < 2) { setSearchResults([]); setSearchError(""); return; }
-    const { data, error } = await supabase.from("registrations").select("id, full_name, category, assigned_bus_id, phone, badge_number").or(personSearchOr(q)).limit(20);
+    const { data, error } = await supabase.from("registrations").select("id, full_name, category, assigned_bus_id, phone, badge_number, photo_status, photo_url").or(personSearchOr(q)).limit(20);
     if (error) { setSearchError(error.message); return; }
     setSearchError("");
     setSearchResults(data || []);
@@ -56,6 +58,7 @@ export default function BusScanSheet({ bus, buses, roster, legId, onClose, onCha
   };
 
   const routePerson = async (p, method) => {
+    setPhotoUrl(p.photo_status === "captured" && p.photo_url ? await getBadgePhotoUrl(p.photo_url) : null);
     const exception = !!p.assigned_bus_id && p.assigned_bus_id !== bus.id;
     if (!exception) { await boardPerson(p, method); return; }
     setPerson(p); setReason(""); setStage("action");
@@ -160,6 +163,13 @@ export default function BusScanSheet({ bus, buses, roster, legId, onClose, onCha
 
         {stage === "action" && person && (
           <div className="flex flex-col gap-3">
+            <div className="flex flex-col items-center gap-2 py-1">
+              <div className="rounded-full overflow-hidden flex items-center justify-center flex-shrink-0" style={{ width: 100, height: 100, background: C.inkSoft, border: `3px solid ${C.speaker}` }}>
+                {photoUrl ? <img src={photoUrl} alt={person.full_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <ShieldAlert size={30} color={C.gold} />}
+              </div>
+              {!photoUrl && <div style={{ color: C.gold, fontSize: 11.5, fontWeight: 700 }}>⚠ No photo on file — verify identity another way</div>}
+              <div style={{ color: C.parchment, fontSize: 16, fontWeight: 700 }}>{person.full_name}</div>
+            </div>
             <div className="rounded-xl p-3.5 flex items-center gap-3" style={{ background: `${C.speaker}18`, border: `1px solid ${C.speaker}55` }}>
               <AlertTriangle size={18} color={C.speaker} style={{ flexShrink: 0 }} />
               <div style={{ color: C.parchment, fontSize: 13.5 }}>{person.full_name} is assigned to {buses.find((b) => b.id === person.assigned_bus_id)?.name || "another bus"}, not {bus.name}.</div>
@@ -175,6 +185,16 @@ export default function BusScanSheet({ bus, buses, roster, legId, onClose, onCha
 
         {stage === "result" && resultView && (
           <div className="flex flex-col gap-3">
+            {person && (
+              <div className="flex flex-col items-center gap-2 py-2">
+                <div className="rounded-full overflow-hidden flex items-center justify-center flex-shrink-0" style={{ width: 128, height: 128, background: C.inkSoft, border: `3px solid ${resultView.color}` }}>
+                  {photoUrl ? <img src={photoUrl} alt={person.full_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <ShieldAlert size={36} color={C.gold} />}
+                </div>
+                {!photoUrl && <div style={{ color: C.gold, fontSize: 12, fontWeight: 700 }}>⚠ No photo on file — verify identity another way</div>}
+                <div style={{ color: C.parchment, fontSize: 18, fontWeight: 700, textAlign: "center" }}>{person.full_name}</div>
+                <PersonTag reg={person} />
+              </div>
+            )}
             <div className="rounded-xl px-4 py-3" style={{ background: `${resultView.color}1f`, border: `1px solid ${resultView.color}` }}>
               <div style={{ color: resultView.color, fontSize: 15.5, fontWeight: 700 }}>{resultView.headline}</div>
               <div style={{ color: C.ink60, fontSize: 13.5, marginTop: 4 }}>{resultView.detail}</div>

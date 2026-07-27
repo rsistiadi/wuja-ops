@@ -42,7 +42,7 @@ export default function BusOpsMode() {
     if (!busId || !legId) { setLoading(false); return; }
     setLoading(true);
     const [rosterRes, statusRes] = await Promise.all([
-      supabase.from("registrations").select("id, full_name, category, assigned_bus_id, medical_note").eq("assigned_bus_id", busId),
+      supabase.from("registrations").select("id, full_name, category, assigned_bus_id, medical_note, photo_status, photo_url").eq("assigned_bus_id", busId),
       supabase.from("bus_trip_status").select("registration_id, bus_id, status, method, reason").eq("trip_leg_id", legId),
     ]);
     const rosterData = rosterRes.data || [];

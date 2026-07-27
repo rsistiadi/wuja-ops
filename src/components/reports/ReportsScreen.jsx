@@ -1,18 +1,28 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { X } from "lucide-react";
-import { C } from "../../lib/tokens";
+import { C, CATEGORY_META } from "../../lib/tokens";
 import { TopBar, PersonTag, Dropdown } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
 import { naturalSortBy } from "../../lib/naturalSort";
 import { BOROBUDUR_MEAL_OPTIONS, PRAMBANAN_MEAL_OPTIONS } from "../../lib/mealChoices";
 import VirtualList from "../shared/VirtualList";
 
-const CREW_CATEGORIES = ["committee", "volunteer"];
+// Matches the order the original spreadsheet tabs were in, so this
+// reads familiarly rather than alphabetically.
+const CATEGORY_ORDER = [
+  "board_member", "delegate_pass", "vip_pass", "speaker", "delegate", "vip",
+  "exhibitor", "youth_wing", "committee", "accompanying", "volunteer", "performer",
+];
 const STATUS_LABELS = { pending: "Pending", badge_pending: "Badge Pending", checked_in: "Checked In" };
+const emptyCounts = () => ({ pending: 0, badge_pending: 0, checked_in: 0 });
+const statusOf = (r) => {
+  if (!r.registered) return "pending";
+  return r.badge_status === "received" ? "checked_in" : "badge_pending";
+};
 
 export default function ReportsScreen() {
-  const [participantCounts, setParticipantCounts] = useState({ pending: 0, badge_pending: 0, checked_in: 0 });
-  const [crewCounts, setCrewCounts] = useState({ pending: 0, badge_pending: 0, checked_in: 0 });
+  const [totalCounts, setTotalCounts] = useState(emptyCounts());
+  const [categoryCounts, setCategoryCounts] = useState({});
   const [walkInStats, setWalkInStats] = useState({ total: 0, free: 0, unpaid: 0, paid: 0, collected: 0 });
   const [mealStats, setMealStats] = useState({ borobudur: {}, prambanan: {} });
   const [busReport, setBusReport] = useState([]); // [{ bus, roster, legs: [{leg, boarded, notRiding, elsewhere, unaccounted}] }]
@@ -20,7 +30,7 @@ export default function ReportsScreen() {
   const [activity, setActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busDetail, setBusDetail] = useState(null); // { bus } while a detail sheet is open
-  const [statusDetail, setStatusDetail] = useState(null); // { group: 'participant'|'crew', status: 'pending'|... }
+  const [statusDetail, setStatusDetail] = useState(null); // { category: null|'committee'|..., status: 'pending'|... }
   const [walkInDetail, setWalkInDetail] = useState(null); // { paymentStatus: 'free'|'unpaid'|'paid'|null }
   const [checkpointDetail, setCheckpointDetail] = useState(null); // { checkpoint }
 
@@ -29,20 +39,23 @@ export default function ReportsScreen() {
     async function load() {
       setLoading(true);
 
-      const countFor = async (categoryFilter) => {
-        const base = () => {
-          let q = supabase.from("registrations").select("id", { count: "exact", head: true });
-          return categoryFilter === "crew" ? q.in("category", CREW_CATEGORIES) : q.not("category", "in", `(${CREW_CATEGORIES.join(",")})`);
-        };
-        const [pendingRes, badgePendingRes, checkedInRes] = await Promise.all([
-          base().eq("registered", false),
-          base().eq("registered", true).eq("badge_status", "not_received"),
-          base().eq("registered", true).eq("badge_status", "received"),
-        ]);
-        return { pending: pendingRes.count || 0, badge_pending: badgePendingRes.count || 0, checked_in: checkedInRes.count || 0 };
-      };
-      const [participantRes, crewRes] = await Promise.all([countFor("participant"), countFor("crew")]);
-      if (!cancelled) { setParticipantCounts(participantRes); setCrewCounts(crewRes); }
+      // One query for every registration's category + status, rather
+      // than a separate count query per category × status combination
+      // — 1,100-ish rows is a trivial payload, and this lets the total
+      // and every category breakdown come from a single round trip.
+      const { data: allRegs } = await supabase.from("registrations").select("category, registered, badge_status");
+      if (!cancelled) {
+        const total = emptyCounts();
+        const byCategory = {};
+        for (const cat of Object.keys(CATEGORY_META)) byCategory[cat] = emptyCounts();
+        for (const r of allRegs || []) {
+          const s = statusOf(r);
+          total[s]++;
+          if (byCategory[r.category]) byCategory[r.category][s]++;
+        }
+        setTotalCounts(total);
+        setCategoryCounts(byCategory);
+      }
 
       // Walk-ins get a distinct reg_code prefix (vs. the original bulk
       // import or crew self-signup), so no separate flag column is needed.
@@ -126,20 +139,38 @@ export default function ReportsScreen() {
         {loading && <div style={{ color: C.ink40, fontSize: 13.5 }}>Loading…</div>}
 
         <div>
-          <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>PARTICIPANTS <span style={{ fontWeight: 500, textTransform: "none" }}>— tap for detail</span></div>
+          <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>TOTAL REGISTERED <span style={{ fontWeight: 500, textTransform: "none" }}>— tap for detail</span></div>
           <div className="grid grid-cols-3 gap-2">
-            <Stat label="Pending" value={participantCounts.pending} color={C.ink40} onClick={() => setStatusDetail({ group: "participant", status: "pending" })} />
-            <Stat label="Badge Pending" value={participantCounts.badge_pending} color={C.gold} onClick={() => setStatusDetail({ group: "participant", status: "badge_pending" })} />
-            <Stat label="Checked In" value={participantCounts.checked_in} color={C.ok} onClick={() => setStatusDetail({ group: "participant", status: "checked_in" })} />
+            <Stat label="Pending" value={totalCounts.pending} color={C.ink40} onClick={() => setStatusDetail({ category: null, status: "pending" })} />
+            <Stat label="Badge Pending" value={totalCounts.badge_pending} color={C.gold} onClick={() => setStatusDetail({ category: null, status: "badge_pending" })} />
+            <Stat label="Checked In" value={totalCounts.checked_in} color={C.ok} onClick={() => setStatusDetail({ category: null, status: "checked_in" })} />
+          </div>
+          <div style={{ color: C.parchment, fontSize: 13, fontWeight: 700, textAlign: "right", marginTop: 6 }}>
+            {totalCounts.pending + totalCounts.badge_pending + totalCounts.checked_in} total in system
           </div>
         </div>
 
         <div>
-          <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>CREW / COMMITTEE <span style={{ fontWeight: 500, textTransform: "none" }}>— tap for detail</span></div>
-          <div className="grid grid-cols-3 gap-2">
-            <Stat label="Pending" value={crewCounts.pending} color={C.ink40} onClick={() => setStatusDetail({ group: "crew", status: "pending" })} />
-            <Stat label="Badge Pending" value={crewCounts.badge_pending} color={C.gold} onClick={() => setStatusDetail({ group: "crew", status: "badge_pending" })} />
-            <Stat label="Checked In" value={crewCounts.checked_in} color={C.ok} onClick={() => setStatusDetail({ group: "crew", status: "checked_in" })} />
+          <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>BY CATEGORY <span style={{ fontWeight: 500, textTransform: "none" }}>— tap for detail</span></div>
+          <div className="flex flex-col gap-3">
+            {CATEGORY_ORDER.map((cat) => {
+              const counts = categoryCounts[cat] || emptyCounts();
+              const meta = CATEGORY_META[cat];
+              const catTotal = counts.pending + counts.badge_pending + counts.checked_in;
+              return (
+                <div key={cat} className="rounded-xl p-3.5" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <span style={{ color: meta.color, fontSize: 13.5, fontWeight: 700 }}>{meta.label}</span>
+                    <span style={{ color: C.ink40, fontSize: 12, fontWeight: 600 }}>{catTotal} total</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Stat label="Pending" value={counts.pending} color={C.ink40} onClick={() => setStatusDetail({ category: cat, status: "pending" })} />
+                    <Stat label="Badge Pending" value={counts.badge_pending} color={C.gold} onClick={() => setStatusDetail({ category: cat, status: "badge_pending" })} />
+                    <Stat label="Checked In" value={counts.checked_in} color={C.ok} onClick={() => setStatusDetail({ category: cat, status: "checked_in" })} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -208,7 +239,7 @@ export default function ReportsScreen() {
       </div>
 
       {busDetail && <BusDetailSheet bus={busDetail.bus} onClose={() => setBusDetail(null)} />}
-      {statusDetail && <StatusDetailSheet group={statusDetail.group} status={statusDetail.status} onClose={() => setStatusDetail(null)} />}
+      {statusDetail && <StatusDetailSheet category={statusDetail.category} status={statusDetail.status} onClose={() => setStatusDetail(null)} />}
       {walkInDetail && <WalkInDetailSheet paymentStatus={walkInDetail.paymentStatus} onClose={() => setWalkInDetail(null)} />}
       {checkpointDetail && <CheckpointDetailSheet checkpoint={checkpointDetail.checkpoint} onClose={() => setCheckpointDetail(null)} />}
     </div>
@@ -292,9 +323,10 @@ function BusDetailSheet({ bus, onClose }) {
   );
 }
 
-// Backs all 6 Participant/Crew status cards — same shape of question
-// each time ("who exactly is in this bucket"), just a different filter.
-function StatusDetailSheet({ group, status, onClose }) {
+// Backs the Total card and every category's status cards — same shape
+// of question each time ("who exactly is in this bucket"), just a
+// different filter. category=null means "everyone, any category".
+function StatusDetailSheet({ category, status, onClose }) {
   const [people, setPeople] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -304,7 +336,7 @@ function StatusDetailSheet({ group, status, onClose }) {
     async function load() {
       setLoading(true);
       let q = supabase.from("registrations").select("id, full_name, phone, category");
-      q = group === "crew" ? q.in("category", CREW_CATEGORIES) : q.not("category", "in", `(${CREW_CATEGORIES.join(",")})`);
+      if (category) q = q.eq("category", category);
       if (status === "pending") q = q.eq("registered", false);
       else if (status === "badge_pending") q = q.eq("registered", true).eq("badge_status", "not_received");
       else q = q.eq("registered", true).eq("badge_status", "received");
@@ -318,9 +350,9 @@ function StatusDetailSheet({ group, status, onClose }) {
     }
     load();
     return () => { cancelled = true; };
-  }, [group, status]);
+  }, [category, status]);
 
-  const title = `${group === "crew" ? "Crew / Committee" : "Participants"} — ${STATUS_LABELS[status]}`;
+  const title = `${category ? CATEGORY_META[category]?.label : "All Categories"} — ${STATUS_LABELS[status]}`;
 
   return (
     <div className="flex flex-col" style={{ position: "fixed", inset: 0, zIndex: 30, background: C.ink }}>

@@ -40,7 +40,7 @@ export default function BadgeLink({ reg, onBack, onNext }) {
         <div className="rounded-2xl p-4" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
           <PersonTag reg={reg} />
           <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 20, fontWeight: 600, marginTop: 8 }}>{reg.full_name}</div>
-          <div style={{ fontFamily: "JetBrains Mono, monospace", color: C.ink40, fontSize: 12.5, marginTop: 2 }}>{reg.reg_code}</div>
+          <div style={{ fontFamily: "JetBrains Mono, monospace", color: reg.badge_number ? C.ink40 : C.gold, fontSize: 12.5, marginTop: 2 }}>{reg.badge_number || "No badge assigned yet"}</div>
         </div>
 
         <div>
@@ -54,7 +54,7 @@ export default function BadgeLink({ reg, onBack, onNext }) {
 
         <div>
           <div style={{ color: C.ink60, fontSize: 13.5, fontWeight: 600, marginBottom: 6 }}>Or enter badge number manually</div>
-          <input value={badge} onChange={(e) => { setBadge(e.target.value); setScanned(false); }} placeholder="e.g. B-0423"
+          <input value={badge} onChange={(e) => { setBadge(e.target.value); setScanned(false); }} placeholder="e.g. A835"
             style={{ fontFamily: "JetBrains Mono, monospace", width: "100%", background: C.ink, border: `1px solid ${C.inkLine}`, borderRadius: 12, color: C.parchment, fontSize: 15.5, padding: "12px 14px", outline: "none" }} />
         </div>
 
