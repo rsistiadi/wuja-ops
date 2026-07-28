@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, X, Check, AlertTriangle, Trash2, Pencil } from "lucide-react";
+import { Plus, X, Check, AlertTriangle, Trash2, Pencil, PackagePlus } from "lucide-react";
 import { C } from "../../lib/tokens";
 import { PrimaryButton, GhostButton } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
@@ -10,6 +10,7 @@ export default function AdminItems() {
   const [showNewItem, setShowNewItem] = useState(false);
   const [editVariant, setEditVariant] = useState(null); // { item, variant | null } — null variant = adding new
   const [damageFor, setDamageFor] = useState(null); // variant
+  const [addStockFor, setAddStockFor] = useState(null); // variant
 
   const refetch = () => {
     supabase.from("merch_items").select("id, name, merch_item_variants(id, variant_label, price, stock_available, stock_damaged)").order("name")
@@ -35,6 +36,7 @@ export default function AdminItems() {
                 <div style={{ color: C.ink40, fontSize: 12.5, marginTop: 2 }}>{formatIDR(v.price)} · {v.stock_available} available{v.stock_damaged > 0 ? ` · ${v.stock_damaged} damaged` : ""}</div>
               </div>
               <div className="flex items-center gap-2">
+                <button onClick={() => setAddStockFor(v)} title="Add stock" style={{ background: "none", border: `1px solid ${C.inkLine}`, borderRadius: 8, padding: 6, cursor: "pointer" }}><PackagePlus size={13} color={C.ok} /></button>
                 <button onClick={() => setDamageFor(v)} title="Flag damage" style={{ background: "none", border: `1px solid ${C.inkLine}`, borderRadius: 8, padding: 6, cursor: "pointer" }}><AlertTriangle size={13} color={C.gold} /></button>
                 <button onClick={() => setEditVariant({ item, variant: v })} title="Edit" style={{ background: "none", border: `1px solid ${C.inkLine}`, borderRadius: 8, padding: 6, cursor: "pointer" }}><Pencil size={13} color={C.ink40} /></button>
               </div>
@@ -45,6 +47,7 @@ export default function AdminItems() {
       {showNewItem && <NewItemSheet onClose={() => setShowNewItem(false)} onSaved={() => { setShowNewItem(false); refetch(); }} />}
       {editVariant && <EditVariantSheet item={editVariant.item} variant={editVariant.variant} onClose={() => setEditVariant(null)} onSaved={() => { setEditVariant(null); refetch(); }} />}
       {damageFor && <DamageSheet variant={damageFor} onClose={() => setDamageFor(null)} onSaved={() => { setDamageFor(null); refetch(); }} />}
+      {addStockFor && <AddStockSheet variant={addStockFor} onClose={() => setAddStockFor(null)} onSaved={() => { setAddStockFor(null); refetch(); }} />}
     </div>
   );
 }
@@ -131,7 +134,7 @@ function EditVariantSheet({ item, variant, onClose, onSaved }) {
             <input value={stock} onChange={(e) => setStock(e.target.value)} type="number" style={inputStyle} />
           </div>
         )}
-        {variant && <div style={{ color: C.ink40, fontSize: 13.5 }}>Stock is adjusted via sales, voids, or the damage-flag button — not edited here directly.</div>}
+        {variant && <div style={{ color: C.ink40, fontSize: 13.5 }}>Stock is adjusted via sales, voids, the Add Stock button, or the damage-flag button — not edited here directly.</div>}
         {error && <div style={{ color: C.alert, fontSize: 14.5 }}>{error}</div>}
       </div>
       <div className="px-5 pb-7 pt-3" style={{ background: C.inkSoft }}><PrimaryButton icon={Check} disabled={saving} onClick={save}>{saving ? "Saving…" : "Save"}</PrimaryButton></div>
@@ -186,3 +189,44 @@ function DamageSheet({ variant, onClose, onSaved }) {
 }
 
 const inputStyle = { width: "100%", background: C.ink, border: `1px solid ${C.inkLine}`, borderRadius: 12, color: C.parchment, fontSize: 16.5, padding: "12px 14px", outline: "none" };
+
+function AddStockSheet({ variant, onClose, onSaved }) {
+  const [quantity, setQuantity] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async () => {
+    if (!note.trim()) { setError("A note is required — e.g. where this stock came from."); return; }
+    const qty = parseInt(quantity, 10);
+    if (isNaN(qty) || qty <= 0) { setError("Enter a valid quantity."); return; }
+    setSaving(true); setError("");
+    const { data, error } = await supabase.rpc("add_merch_stock", { p_variant_id: variant.id, p_quantity: qty, p_note: note.trim() });
+    setSaving(false);
+    const result = data?.[0];
+    if (error || !result?.success) { setError(result?.message || error?.message || "Failed."); return; }
+    onSaved();
+  };
+
+  return (
+    <div className="flex flex-col" style={{ position: "fixed", inset: 0, zIndex: 30, background: C.ink }}>
+      <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${C.inkLine}` }}>
+        <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 18.5, fontWeight: 600 }}>Add Stock</div>
+        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={20} color={C.ink40} /></button>
+      </div>
+      <div className="flex-1 px-5 py-5 flex flex-col gap-4" style={{ background: C.inkSoft }}>
+        <div style={{ color: C.ink60, fontSize: 13.5 }}>Currently available: {variant.stock_available}</div>
+        <div>
+          <div style={{ color: C.ink60, fontSize: 14.5, fontWeight: 600, marginBottom: 6 }}>Quantity to add</div>
+          <input autoFocus value={quantity} onChange={(e) => setQuantity(e.target.value)} type="number" placeholder="0" style={inputStyle} />
+        </div>
+        <div>
+          <div style={{ color: C.ink60, fontSize: 14.5, fontWeight: 600, marginBottom: 6 }}>Note <span style={{ color: C.ink40, fontWeight: 500 }}>(required)</span></div>
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. 50 more delivered from vendor" style={inputStyle} />
+        </div>
+        {error && <div style={{ color: C.alert, fontSize: 14.5 }}>{error}</div>}
+      </div>
+      <div className="px-5 pb-7 pt-3" style={{ background: C.inkSoft }}><PrimaryButton icon={Check} disabled={saving} onClick={submit}>{saving ? "Saving…" : "Add Stock"}</PrimaryButton></div>
+    </div>
+  );
+}
