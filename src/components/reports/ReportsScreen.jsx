@@ -20,8 +20,29 @@ const statusOf = (r) => {
   return r.badge_status === "received" ? "checked_in" : "badge_pending";
 };
 
+// Supabase/PostgREST caps any single request at 1,000 rows by default —
+// silently, with no error, just a truncated result. This showed up for
+// real once the congress passed 1,000 registrations: the Reports total
+// quietly stopped climbing. queryFactory must build a *fresh* query
+// each call (a Supabase query builder can't be re-executed), which is
+// why this takes a function rather than an already-built query.
+async function fetchAllRows(queryFactory) {
+  const pageSize = 1000;
+  let rows = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await queryFactory().range(from, from + pageSize - 1);
+    if (error) throw error;
+    rows = rows.concat(data || []);
+    if (!data || data.length < pageSize) break;
+    from += pageSize;
+  }
+  return rows;
+}
+
 export default function ReportsScreen() {
   const [totalCounts, setTotalCounts] = useState(emptyCounts());
+  const [badgeAssignedCount, setBadgeAssignedCount] = useState(0);
   const [categoryCounts, setCategoryCounts] = useState({});
   const [walkInStats, setWalkInStats] = useState({ total: 0, free: 0, unpaid: 0, paid: 0, collected: 0 });
   const [mealStats, setMealStats] = useState({ borobudur: {}, prambanan: {} });
@@ -41,27 +62,30 @@ export default function ReportsScreen() {
 
       // One query for every registration's category + status, rather
       // than a separate count query per category × status combination
-      // — 1,100-ish rows is a trivial payload, and this lets the total
-      // and every category breakdown come from a single round trip.
-      const { data: allRegs } = await supabase.from("registrations").select("category, registered, badge_status");
+      // — cheap enough as a single fetch, paginated to get every row
+      // regardless of the 1,000-row default cap.
+      const allRegs = await fetchAllRows(() => supabase.from("registrations").select("category, registered, badge_status, badge_number").order("id"));
       if (!cancelled) {
         const total = emptyCounts();
         const byCategory = {};
         for (const cat of Object.keys(CATEGORY_META)) byCategory[cat] = emptyCounts();
-        for (const r of allRegs || []) {
+        let hasBadgeCount = 0;
+        for (const r of allRegs) {
           const s = statusOf(r);
           total[s]++;
           if (byCategory[r.category]) byCategory[r.category][s]++;
+          if (r.badge_number) hasBadgeCount++;
         }
         setTotalCounts(total);
         setCategoryCounts(byCategory);
+        setBadgeAssignedCount(hasBadgeCount);
       }
 
       // Walk-ins get a distinct reg_code prefix (vs. the original bulk
       // import or crew self-signup), so no separate flag column is needed.
-      const { data: walkIns } = await supabase.from("registrations").select("payment_status, payment_amount").like("reg_code", "WUJA2026-W%");
+      const walkIns = await fetchAllRows(() => supabase.from("registrations").select("payment_status, payment_amount").like("reg_code", "WUJA2026-W%").order("id"));
       if (!cancelled) {
-        const rows = walkIns || [];
+        const rows = walkIns;
         setWalkInStats({
           total: rows.length,
           free: rows.filter((r) => r.payment_status === "free").length,
@@ -72,9 +96,9 @@ export default function ReportsScreen() {
       }
 
       // Excludes performers — they aren't asked, meal service doesn't apply to them.
-      const { data: mealRows } = await supabase.from("registrations").select("meal_choice_borobudur, meal_choice_prambanan").neq("category", "performer");
+      const mealRows = await fetchAllRows(() => supabase.from("registrations").select("meal_choice_borobudur, meal_choice_prambanan").neq("category", "performer").order("id"));
       if (!cancelled) {
-        const rows = mealRows || [];
+        const rows = mealRows;
         const countBy = (key, options) => {
           const counts = {};
           for (const o of options) counts[o.value] = rows.filter((r) => r[key] === o.value).length;
@@ -98,13 +122,12 @@ export default function ReportsScreen() {
       // ~600 sequential round trips) — fetch every roster assignment
       // and every trip status once, then compute all the bus/leg
       // combinations from that in memory.
-      const [rosterRes, allStatusRes] = await Promise.all([
-        supabase.from("registrations").select("id, assigned_bus_id").not("assigned_bus_id", "is", null),
-        supabase.from("bus_trip_status").select("registration_id, trip_leg_id, bus_id, status"),
+      const [rosterData, allStatuses] = await Promise.all([
+        fetchAllRows(() => supabase.from("registrations").select("id, assigned_bus_id").not("assigned_bus_id", "is", null).order("id")),
+        fetchAllRows(() => supabase.from("bus_trip_status").select("registration_id, trip_leg_id, bus_id, status").order("id")),
       ]);
       const rosterByBus = {};
-      for (const r of rosterRes.data || []) (rosterByBus[r.assigned_bus_id] ??= []).push(r.id);
-      const allStatuses = allStatusRes.data || [];
+      for (const r of rosterData) (rosterByBus[r.assigned_bus_id] ??= []).push(r.id);
 
       const busRows = [];
       for (const bus of buses) {
@@ -167,13 +190,14 @@ export default function ReportsScreen() {
 
         <div>
           <div style={{ color: C.ink60, fontSize: 12.5, fontWeight: 700, marginBottom: 8 }}>TOTAL REGISTERED <span style={{ fontWeight: 500, textTransform: "none" }}>— tap for detail</span></div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2">
+            <Stat label="Total" value={totalCounts.pending + totalCounts.badge_pending + totalCounts.checked_in} color={C.parchment} onClick={() => setStatusDetail({ category: null, status: null })} />
             <Stat label="Pending" value={totalCounts.pending} color={C.ink40} onClick={() => setStatusDetail({ category: null, status: "pending" })} />
             <Stat label="Badge Pending" value={totalCounts.badge_pending} color={C.gold} onClick={() => setStatusDetail({ category: null, status: "badge_pending" })} />
             <Stat label="Checked In" value={totalCounts.checked_in} color={C.ok} onClick={() => setStatusDetail({ category: null, status: "checked_in" })} />
           </div>
-          <div style={{ color: C.parchment, fontSize: 13, fontWeight: 700, textAlign: "right", marginTop: 6 }}>
-            {totalCounts.pending + totalCounts.badge_pending + totalCounts.checked_in} total in system
+          <div style={{ color: C.ink40, fontSize: 12.5, textAlign: "right", marginTop: 6 }}>
+            {badgeAssignedCount} of {totalCounts.pending + totalCounts.badge_pending + totalCounts.checked_in} have a badge number assigned
           </div>
         </div>
 
@@ -378,24 +402,25 @@ function StatusDetailSheet({ category, status, onClose }) {
     let cancelled = false;
     async function load() {
       setLoading(true);
-      let q = supabase.from("registrations").select("id, full_name, phone, category");
-      if (category) q = q.eq("category", category);
-      if (status === "pending") q = q.eq("registered", false);
-      else if (status === "badge_pending") q = q.eq("registered", true).eq("badge_status", "not_received");
-      else q = q.eq("registered", true).eq("badge_status", "received");
-
-      const { data, error } = await q.order("full_name");
-      if (cancelled) return;
-      if (error) { setError(error.message); setLoading(false); return; }
+      const data = await fetchAllRows(() => {
+        let q = supabase.from("registrations").select("id, full_name, phone, category").order("full_name").order("id");
+        if (category) q = q.eq("category", category);
+        if (status === "pending") q = q.eq("registered", false);
+        else if (status === "badge_pending") q = q.eq("registered", true).eq("badge_status", "not_received");
+        else if (status === "checked_in") q = q.eq("registered", true).eq("badge_status", "received");
+        // status === null means every status — no filter added, matches the Total box.
+        return q;
+      }).catch((e) => { setError(e.message); return null; });
+      if (cancelled || data === null) { setLoading(false); return; }
       setError("");
-      setPeople(data || []);
+      setPeople(data);
       setLoading(false);
     }
     load();
     return () => { cancelled = true; };
   }, [category, status]);
 
-  const title = `${category ? CATEGORY_META[category]?.label : "All Categories"} — ${STATUS_LABELS[status]}`;
+  const title = `${category ? CATEGORY_META[category]?.label : "All Categories"} — ${status ? STATUS_LABELS[status] : "Everyone"}`;
 
   return (
     <div className="flex flex-col" style={{ position: "fixed", inset: 0, zIndex: 30, background: C.ink }}>
@@ -505,26 +530,24 @@ function CheckpointDetailSheet({ checkpoint, onClose }) {
     let cancelled = false;
     async function load() {
       setLoading(true);
-      const { data: logs, error: logErr } = await supabase
-        .from("event_scan_log")
-        .select("registration_id, allowed, scanned_at")
-        .eq("checkpoint_id", checkpoint.id)
-        .order("scanned_at", { ascending: false });
-      if (cancelled) return;
-      if (logErr) { setError(logErr.message); setLoading(false); return; }
+      const logs = await fetchAllRows(() =>
+        supabase.from("event_scan_log").select("registration_id, allowed, scanned_at").eq("checkpoint_id", checkpoint.id).order("scanned_at", { ascending: false }).order("id")
+      ).catch((e) => { setError(e.message); return null; });
+      if (cancelled || logs === null) { setLoading(false); return; }
+      setError("");
 
       // Latest scan per person — logs are already newest-first, so the
       // first time we see a registration_id is its latest result.
       const latestByPerson = new Map();
-      for (const row of logs || []) {
+      for (const row of logs) {
         if (!latestByPerson.has(row.registration_id)) latestByPerson.set(row.registration_id, row);
       }
       const ids = [...latestByPerson.keys()];
       if (ids.length === 0) { setPeople([]); setLoading(false); return; }
 
-      const { data: regs, error: regErr } = await supabase.from("registrations").select("id, full_name, phone, category").in("id", ids);
-      if (cancelled) return;
-      if (regErr) { setError(regErr.message); setLoading(false); return; }
+      const regs = await fetchAllRows(() => supabase.from("registrations").select("id, full_name, phone, category").in("id", ids).order("id"))
+        .catch((e) => { setError(e.message); return null; });
+      if (cancelled || regs === null) { setLoading(false); return; }
 
       setError("");
       setPeople((regs || []).map((r) => ({ ...r, _latest: latestByPerson.get(r.id) })));
