@@ -13,8 +13,11 @@ export default function SellScreen({ crew, session }) {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const refetchItems = () => {
-    supabase.from("merch_items").select("id, name, merch_item_variants(id, variant_label, price, stock_available)").order("name")
-      .then(({ data }) => setItems(data || []));
+    supabase.from("merch_items").select("id, name, is_active, merch_item_variants(id, variant_label, price, stock_available, is_active)").eq("is_active", true).order("name")
+      .then(({ data }) => setItems((data || [])
+        .map((item) => ({ ...item, merch_item_variants: (item.merch_item_variants || []).filter((v) => v.is_active) }))
+        .filter((item) => item.merch_item_variants.length > 0)
+      ));
   };
   useEffect(() => { refetchItems(); }, [refreshKey]);
 

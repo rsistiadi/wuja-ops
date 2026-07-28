@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, X, Check, AlertTriangle, Trash2, Pencil, PackagePlus } from "lucide-react";
+import { Plus, X, Check, AlertTriangle, Trash2, Pencil, PackagePlus, Eye, EyeOff } from "lucide-react";
 import { C } from "../../lib/tokens";
 import { PrimaryButton, GhostButton } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
@@ -11,34 +11,56 @@ export default function AdminItems() {
   const [editVariant, setEditVariant] = useState(null); // { item, variant | null } — null variant = adding new
   const [damageFor, setDamageFor] = useState(null); // variant
   const [addStockFor, setAddStockFor] = useState(null); // variant
+  const [deleteTarget, setDeleteTarget] = useState(null); // { type: 'item'|'variant', id, label }
 
   const refetch = () => {
-    supabase.from("merch_items").select("id, name, merch_item_variants(id, variant_label, price, stock_available, stock_damaged)").order("name")
+    supabase.from("merch_items").select("id, name, is_active, merch_item_variants(id, variant_label, price, stock_available, stock_damaged, is_active)").order("name")
       .then(({ data }) => setItems(data || []));
   };
   useEffect(() => { refetch(); }, []);
+
+  const toggleActive = async (table, row) => {
+    await supabase.from(table).update({ is_active: !row.is_active }).eq("id", row.id);
+    refetch();
+  };
 
   return (
     <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-3" style={{ background: C.inkSoft }}>
       <PrimaryButton icon={Plus} onClick={() => setShowNewItem(true)}>New Item</PrimaryButton>
       {items === null && <div style={{ color: C.ink40, fontSize: 14.5 }}>Loading…</div>}
       {items?.map((item) => (
-        <div key={item.id} className="rounded-xl p-4" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
+        <div key={item.id} className="rounded-xl p-4" style={{ background: C.ink, border: `1px solid ${C.inkLine}`, opacity: item.is_active ? 1 : 0.55 }}>
           <div className="flex items-center justify-between mb-2">
-            <span style={{ color: C.parchment, fontSize: 16.5, fontWeight: 700 }}>{item.name}</span>
-            <button onClick={() => setEditVariant({ item, variant: null })} className="flex items-center gap-1" style={{ background: "none", border: "none", color: C.gold, fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}><Plus size={13} /> Variant</button>
+            <div className="flex items-center gap-2">
+              <span style={{ color: C.parchment, fontSize: 16.5, fontWeight: 700 }}>{item.name}</span>
+              {!item.is_active && <span className="rounded-full" style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 8px", background: `${C.ink40}33`, color: C.ink40 }}>INACTIVE</span>}
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setEditVariant({ item, variant: null })} className="flex items-center gap-1" style={{ background: "none", border: "none", color: C.gold, fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}><Plus size={13} /> Variant</button>
+              <button onClick={() => toggleActive("merch_items", item)} title={item.is_active ? "Deactivate item" : "Reactivate item"} style={{ background: "none", border: `1px solid ${C.inkLine}`, borderRadius: 8, padding: 6, cursor: "pointer" }}>
+                {item.is_active ? <EyeOff size={13} color={C.ink40} /> : <Eye size={13} color={C.ok} />}
+              </button>
+              <button onClick={() => setDeleteTarget({ type: "item", id: item.id, label: item.name })} title="Delete item" style={{ background: "none", border: `1px solid ${C.inkLine}`, borderRadius: 8, padding: 6, cursor: "pointer" }}><Trash2 size={13} color={C.alert} /></button>
+            </div>
           </div>
           {(item.merch_item_variants || []).length === 0 && <div style={{ color: C.ink40, fontSize: 13.5 }}>No variants yet — add one to set a price and stock.</div>}
           {(item.merch_item_variants || []).map((v) => (
-            <div key={v.id} className="flex items-center justify-between py-2" style={{ borderTop: `1px dashed ${C.inkLine}` }}>
+            <div key={v.id} className="flex items-center justify-between py-2" style={{ borderTop: `1px dashed ${C.inkLine}`, opacity: v.is_active ? 1 : 0.55 }}>
               <div>
-                <div style={{ color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>{v.variant_label || "— no variant —"}</div>
+                <div className="flex items-center gap-2">
+                  <span style={{ color: C.parchment, fontSize: 14.5, fontWeight: 600 }}>{v.variant_label || "— no variant —"}</span>
+                  {!v.is_active && <span className="rounded-full" style={{ fontSize: 10, fontWeight: 700, padding: "1px 7px", background: `${C.ink40}33`, color: C.ink40 }}>INACTIVE</span>}
+                </div>
                 <div style={{ color: C.ink40, fontSize: 12.5, marginTop: 2 }}>{formatIDR(v.price)} · {v.stock_available} available{v.stock_damaged > 0 ? ` · ${v.stock_damaged} damaged` : ""}</div>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => setAddStockFor(v)} title="Add stock" style={{ background: "none", border: `1px solid ${C.inkLine}`, borderRadius: 8, padding: 6, cursor: "pointer" }}><PackagePlus size={13} color={C.ok} /></button>
                 <button onClick={() => setDamageFor(v)} title="Flag damage" style={{ background: "none", border: `1px solid ${C.inkLine}`, borderRadius: 8, padding: 6, cursor: "pointer" }}><AlertTriangle size={13} color={C.gold} /></button>
                 <button onClick={() => setEditVariant({ item, variant: v })} title="Edit" style={{ background: "none", border: `1px solid ${C.inkLine}`, borderRadius: 8, padding: 6, cursor: "pointer" }}><Pencil size={13} color={C.ink40} /></button>
+                <button onClick={() => toggleActive("merch_item_variants", v)} title={v.is_active ? "Deactivate variant" : "Reactivate variant"} style={{ background: "none", border: `1px solid ${C.inkLine}`, borderRadius: 8, padding: 6, cursor: "pointer" }}>
+                  {v.is_active ? <EyeOff size={13} color={C.ink40} /> : <Eye size={13} color={C.ok} />}
+                </button>
+                <button onClick={() => setDeleteTarget({ type: "variant", id: v.id, label: v.variant_label || item.name })} title="Delete variant" style={{ background: "none", border: `1px solid ${C.inkLine}`, borderRadius: 8, padding: 6, cursor: "pointer" }}><Trash2 size={13} color={C.alert} /></button>
               </div>
             </div>
           ))}
@@ -48,6 +70,7 @@ export default function AdminItems() {
       {editVariant && <EditVariantSheet item={editVariant.item} variant={editVariant.variant} onClose={() => setEditVariant(null)} onSaved={() => { setEditVariant(null); refetch(); }} />}
       {damageFor && <DamageSheet variant={damageFor} onClose={() => setDamageFor(null)} onSaved={() => { setDamageFor(null); refetch(); }} />}
       {addStockFor && <AddStockSheet variant={addStockFor} onClose={() => setAddStockFor(null)} onSaved={() => { setAddStockFor(null); refetch(); }} />}
+      {deleteTarget && <ConfirmDeleteSheet target={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={() => { setDeleteTarget(null); refetch(); }} />}
     </div>
   );
 }
@@ -190,6 +213,48 @@ function DamageSheet({ variant, onClose, onSaved }) {
 
 const inputStyle = { width: "100%", background: C.ink, border: `1px solid ${C.inkLine}`, borderRadius: 12, color: C.parchment, fontSize: 16.5, padding: "12px 14px", outline: "none" };
 
+function ConfirmDeleteSheet({ target, onClose, onDeleted }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const confirm = async () => {
+    setSaving(true); setError("");
+    const table = target.type === "item" ? "merch_items" : "merch_item_variants";
+    const { error } = await supabase.from(table).delete().eq("id", target.id);
+    setSaving(false);
+    if (error) {
+      // 23503 = foreign key violation — this item/variant has real sales
+      // history, which Postgres correctly refuses to let us destroy.
+      if (error.code === "23503") {
+        setError(`Can't delete — this ${target.type} has sales history attached. Use Deactivate instead to hide it without losing that record.`);
+      } else {
+        setError(error.message);
+      }
+      return;
+    }
+    onDeleted();
+  };
+
+  return (
+    <div className="flex items-end" style={{ position: "fixed", inset: 0, zIndex: 30, background: "rgba(10,15,26,0.82)" }}>
+      <div className="w-full rounded-t-2xl p-5" style={{ background: C.ink, border: `1px solid ${C.inkLine}` }}>
+        <div className="flex items-center justify-between mb-3">
+          <span style={{ color: C.parchment, fontSize: 15.5, fontWeight: 700 }}>Delete {target.type === "item" ? "Item" : "Variant"}?</span>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color={C.ink40} /></button>
+        </div>
+        <div style={{ color: C.ink60, fontSize: 14, marginBottom: 4 }}>
+          {target.type === "item" ? <>This deletes <b style={{ color: C.parchment }}>{target.label}</b> and all of its variants.</> : <>This deletes the <b style={{ color: C.parchment }}>{target.label}</b> variant.</>}
+        </div>
+        <div style={{ color: C.ink40, fontSize: 13, marginBottom: 16 }}>This can't be undone. If it's ever been sold, this will be blocked automatically — use Deactivate for that instead.</div>
+        {error && <div style={{ color: C.alert, fontSize: 13.5, marginBottom: 12 }}>{error}</div>}
+        <div className="flex gap-2">
+          <button onClick={onClose} className="flex-1 rounded-lg" style={{ background: "transparent", border: `1px solid ${C.inkLine}`, color: C.ink60, fontSize: 14.5, fontWeight: 600, padding: "11px 0", cursor: "pointer" }}>Cancel</button>
+          <button onClick={confirm} disabled={saving} className="flex-1 rounded-lg" style={{ background: C.alert, color: "#fff", fontSize: 14.5, fontWeight: 700, padding: "11px 0", border: "none", cursor: "pointer" }}>{saving ? "Deleting…" : "Delete"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 function AddStockSheet({ variant, onClose, onSaved }) {
   const [quantity, setQuantity] = useState("");
   const [note, setNote] = useState("");
