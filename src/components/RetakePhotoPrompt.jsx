@@ -46,10 +46,10 @@ export default function RetakePhotoPrompt({ registrationId }) {
   );
 }
 
-function RetakeCapture({ registrationId, onCancel, onSaved }) {
+export function RetakeCapture({ registrationId, defaultFacingMode = "user", title = "Retake Photo", onCancel, onSaved }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
-  const [facingMode, setFacingMode] = useState("user"); // selfie by default
+  const [facingMode, setFacingMode] = useState(defaultFacingMode);
   const [cameraError, setCameraError] = useState("");
   const [capturedBlob, setCapturedBlob] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -95,7 +95,7 @@ function RetakeCapture({ registrationId, onCancel, onSaved }) {
   return (
     <div className="flex flex-col" style={{ position: "fixed", inset: 0, zIndex: 40, background: C.ink }}>
       <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${C.inkLine}` }}>
-        <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 18.5, fontWeight: 600 }}>Retake Photo</div>
+        <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 18.5, fontWeight: 600 }}>{title}</div>
         <button onClick={onCancel} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={20} color={C.ink40} /></button>
       </div>
       <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col" style={{ background: C.inkSoft }}>

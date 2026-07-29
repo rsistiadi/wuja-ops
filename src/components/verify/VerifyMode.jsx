@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Search, Contact, Heart, ScanLine, Pencil, X, Check } from "lucide-react";
+import { Search, Contact, Heart, ScanLine, Pencil, X, Check, Camera } from "lucide-react";
 import { C, CATEGORY_META, categoryLabel, registrationStatus } from "../../lib/tokens";
 import { TopBar, PrimaryButton, PersonTag, StatusPill, PersonAvatar, useDebouncedValue } from "../shared/UI";
 import { supabase } from "../../lib/supabaseClient";
@@ -7,6 +7,7 @@ import { getBadgePhotoUrl } from "../../lib/photoStorage";
 import { extractBadgeNumber } from "../../lib/qrScan";
 import { lookupByBadgeNumber } from "../../lib/badgeLookup";
 import { personSearchOr } from "../../lib/personSearch";
+import { RetakeCapture } from "../RetakePhotoPrompt";
 import QrScannerView from "../shared/QrScannerView";
 
 export default function VerifyMode({ canEdit }) {
@@ -18,6 +19,7 @@ export default function VerifyMode({ canEdit }) {
   const [scanning, setScanning] = useState(false);
   const [notFound, setNotFound] = useState("");
   const [editing, setEditing] = useState(false);
+  const [retakingPhoto, setRetakingPhoto] = useState(false);
 
   useEffect(() => {
     const trimmed = debounced.trim();
@@ -91,6 +93,11 @@ export default function VerifyMode({ canEdit }) {
               </button>
             )}
             <PersonAvatar reg={selected} photoUrl={photoUrl} size={84} />
+            {canEdit && (
+              <button onClick={() => setRetakingPhoto(true)} className="flex items-center gap-1.5 mt-2" style={{ background: "none", border: "none", color: C.gold, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                <Camera size={12} /> {selected.photo_status === "captured" ? "Retake Photo" : "Add Photo"}
+              </button>
+            )}
             <div style={{ fontFamily: "Fraunces, serif", color: C.parchment, fontSize: 20, fontWeight: 600, marginTop: 12, textAlign: "center" }}>{selected.full_name}</div>
             {selected.title_or_note && <div style={{ color: C.ink60, fontSize: 13, textAlign: "center", marginTop: 4, fontStyle: "italic" }}>{selected.title_or_note}</div>}
             <div className="flex items-center gap-2 mt-2">
@@ -112,6 +119,23 @@ export default function VerifyMode({ canEdit }) {
 
       {scanning && <QrScannerView title="Scan badge" onResult={onQrDetected} onCancel={() => setScanning(false)} />}
       {editing && <EditRegistrationSheet reg={selected} onClose={() => setEditing(false)} onSaved={(updated) => { setSelected(updated); setEditing(false); }} />}
+      {retakingPhoto && (
+        <RetakeCapture
+          registrationId={selected.id}
+          defaultFacingMode="environment"
+          title={selected.photo_status === "captured" ? "Retake Photo" : "Add Photo"}
+          onCancel={() => setRetakingPhoto(false)}
+          onSaved={async () => {
+            setRetakingPhoto(false);
+            const { data } = await supabase.from("registrations").select("*").eq("id", selected.id).single();
+            if (data) {
+              setSelected(data);
+              const url = await getBadgePhotoUrl(data.photo_url);
+              setPhotoUrl(url);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
